@@ -1,0 +1,165 @@
+---
+/**
+ * ProductGrid Block - Vitrine de produtos
+ */
+interface Props {
+  content: {
+    title?: string
+    subtitle?: string
+    products: Array<{
+      image: string
+      name: string
+      description?: string
+      category?: string
+      price?: string
+      cta_text?: string
+      cta_url?: string
+    }>
+  }
+  layout?: string
+  variant?: string
+}
+
+const { content, layout = 'grid', variant = 'default' } = Astro.props
+const { title, subtitle, products = [] } = content
+
+const variantClasses = {
+  default: 'bg-white',
+  dark: 'bg-gray-900 text-white',
+  light: 'bg-gray-50',
+  primary: 'bg-primary-50',
+}
+
+const gridClasses = {
+  grid: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6',
+  list: 'space-y-6',
+  featured: 'grid grid-cols-1 lg:grid-cols-2 gap-6',
+}
+---
+
+<section class={`product-grid-block py-16 ${variantClasses[variant] || variantClasses.default}`}>
+  <div class="container mx-auto px-4">
+    {(title || subtitle) && (
+      <div class="text-center mb-12">
+        {title && <h2 class="text-3xl font-bold mb-4">{title}</h2>}
+        {subtitle && <p class={`text-lg ${variant === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{subtitle}</p>}
+      </div>
+    )}
+    
+    <div class={gridClasses[layout] || gridClasses.grid}>
+      {products.map((product, index) => (
+        <div 
+          class={`product-card group ${
+            layout === 'list' 
+              ? 'flex gap-6 items-start' 
+              : layout === 'featured' && index === 0 
+                ? 'lg:col-span-2 lg:row-span-2' 
+                : ''
+          }`}
+        >
+          {layout === 'list' ? (
+            <!-- List Layout -->
+            <>
+              {product.image && (
+                <div class="flex-shrink-0 w-40 h-40">
+                  <img 
+                    src={product.image} 
+                    alt={product.name}
+                    class="w-full h-full object-cover rounded-lg"
+                    loading="lazy"
+                  />
+                </div>
+              )}
+              <div class="flex-1">
+                {product.category && (
+                  <span class="text-sm text-primary-500 font-medium">{product.category}</span>
+                )}
+                <h3 class="text-xl font-semibold mt-1">{product.name}</h3>
+                {product.description && (
+                  <p class={`mt-2 ${variant === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                    {product.description}
+                  </p>
+                )}
+                <div class="mt-4 flex items-center gap-4">
+                  {product.price && (
+                    <span class="text-lg font-bold text-primary-500">{product.price}</span>
+                  )}
+                  {product.cta_text && (
+                    <a 
+                      href={product.cta_url || '#'} 
+                      class="text-primary-500 hover:text-primary-600 font-medium"
+                    >
+                      {product.cta_text} →
+                    </a>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            <!-- Card Layout -->
+            <div class={`bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-lg transition-shadow ${
+              layout === 'featured' && index === 0 ? 'h-full' : ''
+            }`}>
+              {product.image && (
+                <div class={`relative overflow-hidden ${layout === 'featured' && index === 0 ? 'aspect-square' : 'aspect-square'}`}>
+                  <img 
+                    src={product.image} 
+                    alt={product.name}
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    loading="lazy"
+                  />
+                  {product.category && (
+                    <span class="absolute top-4 left-4 px-3 py-1 bg-white/90 text-sm font-medium rounded-full">
+                      {product.category}
+                    </span>
+                  )}
+                </div>
+              )}
+              <div class="p-5">
+                <h3 class={`font-semibold ${layout === 'featured' && index === 0 ? 'text-2xl' : 'text-lg'}`}>
+                  {product.name}
+                </h3>
+                {product.description && (
+                  <p class="mt-2 text-gray-600 text-sm line-clamp-2">
+                    {product.description}
+                  </p>
+                )}
+                <div class="mt-4 flex items-center justify-between">
+                  {product.price && (
+                    <span class="text-lg font-bold text-primary-500">{product.price}</span>
+                  )}
+                  {product.cta_text && (
+                    <a 
+                      href={product.cta_url || '#'} 
+                      class="inline-flex items-center gap-1 text-primary-500 hover:text-primary-600 font-medium text-sm"
+                    >
+                      {product.cta_text}
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+    
+    {products.length === 0 && (
+      <div class="text-center py-12 text-gray-500">
+        <p>Nenhum produto cadastrado.</p>
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+</style>

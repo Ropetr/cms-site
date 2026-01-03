@@ -3,6 +3,7 @@ import AdminLayout from './components/layout/AdminLayout'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import PagesPage from './pages/PagesPage'
+import PageEditorPage from './pages/PageEditorPage'
 import {
   MenusPage,
   MediaPage,
@@ -10,7 +11,6 @@ import {
   ThemesPage,
   SettingsPage,
   UsersPage,
-  PageEditorPage,
 } from './pages/PlaceholderPages'
 
 export default function App() {

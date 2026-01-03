@@ -320,3 +320,183 @@ pagesRoutes.post('/reorder', async (c) => {
     return c.json({ error: 'Erro ao reordenar páginas' }, 500);
   }
 });
+
+// ============================================
+// ROTAS DE SEÇÕES
+// ============================================
+
+// Listar seções de uma página
+pagesRoutes.get('/:id/sections', async (c) => {
+  try {
+    const pageId = c.req.param('id');
+    
+    const sections = await c.env.DB.prepare(
+      'SELECT * FROM page_sections WHERE page_id = ? ORDER BY position ASC'
+    ).bind(pageId).all();
+    
+    return c.json({ success: true, data: sections.results });
+  } catch (error) {
+    console.error('List sections error:', error);
+    return c.json({ error: 'Erro ao listar seções' }, 500);
+  }
+});
+
+// Adicionar seção a uma página
+pagesRoutes.post('/:id/sections', async (c) => {
+  try {
+    const pageId = c.req.param('id');
+    const data = await c.req.json();
+    
+    const { section_type, title, content, layout, variant, sort_order } = data;
+    
+    if (!section_type) {
+      return c.json({ error: 'Tipo de seção é obrigatório' }, 400);
+    }
+    
+    // Verificar se página existe
+    const page = await c.env.DB.prepare('SELECT id FROM pages WHERE id = ?').bind(pageId).first();
+    if (!page) {
+      return c.json({ error: 'Página não encontrada' }, 404);
+    }
+    
+    // Pegar próxima posição se não foi informada
+    let position = sort_order;
+    if (position === undefined || position === null) {
+      const lastSection = await c.env.DB.prepare(
+        'SELECT MAX(position) as max_pos FROM page_sections WHERE page_id = ?'
+      ).bind(pageId).first();
+      position = ((lastSection?.max_pos as number) || 0) + 1;
+    }
+    
+    const id = `section_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
+    
+    await c.env.DB.prepare(`
+      INSERT INTO page_sections (id, page_id, section_type, title, content, layout, variant, position, is_visible)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+    `).bind(
+      id, pageId, section_type, title || section_type,
+      typeof content === 'string' ? content : JSON.stringify(content || {}),
+      layout || 'default', variant || 'default', position
+    ).run();
+    
+    // Invalidar cache
+    const pageData = await c.env.DB.prepare('SELECT slug FROM pages WHERE id = ?').bind(pageId).first();
+    if (pageData?.slug) {
+      await c.env.CACHE.delete(`page:${pageData.slug}`);
+    }
+    
+    return c.json({ success: true, data: { id, page_id: pageId, section_type, title, position } }, 201);
+  } catch (error) {
+    console.error('Add section error:', error);
+    return c.json({ error: 'Erro ao adicionar seção' }, 500);
+  }
+});
+
+// Atualizar seção
+pagesRoutes.put('/:id/sections/:sectionId', async (c) => {
+  try {
+    const pageId = c.req.param('id');
+    const sectionId = c.req.param('sectionId');
+    const data = await c.req.json();
+    
+    const { title, content, layout, variant, is_visible } = data;
+    
+    // Verificar se seção existe
+    const section = await c.env.DB.prepare(
+      'SELECT id FROM page_sections WHERE id = ? AND page_id = ?'
+    ).bind(sectionId, pageId).first();
+    
+    if (!section) {
+      return c.json({ error: 'Seção não encontrada' }, 404);
+    }
+    
+    await c.env.DB.prepare(`
+      UPDATE page_sections SET
+        title = COALESCE(?, title),
+        content = COALESCE(?, content),
+        layout = COALESCE(?, layout),
+        variant = COALESCE(?, variant),
+        is_visible = COALESCE(?, is_visible),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ? AND page_id = ?
+    `).bind(
+      title,
+      typeof content === 'string' ? content : (content ? JSON.stringify(content) : null),
+      layout, variant,
+      is_visible !== undefined ? (is_visible ? 1 : 0) : null,
+      sectionId, pageId
+    ).run();
+    
+    // Invalidar cache
+    const pageData = await c.env.DB.prepare('SELECT slug FROM pages WHERE id = ?').bind(pageId).first();
+    if (pageData?.slug) {
+      await c.env.CACHE.delete(`page:${pageData.slug}`);
+    }
+    
+    return c.json({ success: true });
+  } catch (error) {
+    console.error('Update section error:', error);
+    return c.json({ error: 'Erro ao atualizar seção' }, 500);
+  }
+});
+
+// Deletar seção
+pagesRoutes.delete('/:id/sections/:sectionId', async (c) => {
+  try {
+    const pageId = c.req.param('id');
+    const sectionId = c.req.param('sectionId');
+    
+    // Verificar se seção existe
+    const section = await c.env.DB.prepare(
+      'SELECT id FROM page_sections WHERE id = ? AND page_id = ?'
+    ).bind(sectionId, pageId).first();
+    
+    if (!section) {
+      return c.json({ error: 'Seção não encontrada' }, 404);
+    }
+    
+    await c.env.DB.prepare(
+      'DELETE FROM page_sections WHERE id = ? AND page_id = ?'
+    ).bind(sectionId, pageId).run();
+    
+    // Invalidar cache
+    const pageData = await c.env.DB.prepare('SELECT slug FROM pages WHERE id = ?').bind(pageId).first();
+    if (pageData?.slug) {
+      await c.env.CACHE.delete(`page:${pageData.slug}`);
+    }
+    
+    return c.json({ success: true });
+  } catch (error) {
+    console.error('Delete section error:', error);
+    return c.json({ error: 'Erro ao deletar seção' }, 500);
+  }
+});
+
+// Reordenar seções
+pagesRoutes.post('/:id/sections/reorder', async (c) => {
+  try {
+    const pageId = c.req.param('id');
+    const { section_ids } = await c.req.json();
+    
+    if (!Array.isArray(section_ids)) {
+      return c.json({ error: 'Lista de seções inválida' }, 400);
+    }
+    
+    for (let i = 0; i < section_ids.length; i++) {
+      await c.env.DB.prepare(
+        'UPDATE page_sections SET position = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND page_id = ?'
+      ).bind(i, section_ids[i], pageId).run();
+    }
+    
+    // Invalidar cache
+    const pageData = await c.env.DB.prepare('SELECT slug FROM pages WHERE id = ?').bind(pageId).first();
+    if (pageData?.slug) {
+      await c.env.CACHE.delete(`page:${pageData.slug}`);
+    }
+    
+    return c.json({ success: true });
+  } catch (error) {
+    console.error('Reorder sections error:', error);
+    return c.json({ error: 'Erro ao reordenar seções' }, 500);
+  }
+});

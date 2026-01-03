@@ -1,0 +1,104 @@
+---
+export interface Props {
+  title?: string;
+  content: {
+    embed_url?: string;
+    address?: string;
+  };
+  layout?: string;
+  variant?: string;
+}
+
+const { title, content = {}, layout = 'fullwidth', variant = 'default' } = Astro.props;
+
+const embedUrl = content.embed_url || '';
+const address = content.address || '';
+---
+
+<section class:list={['map-section', `layout-${layout}`, `variant-${variant}`]}>
+  {title && (
+    <div class="container mx-auto px-4">
+      <div class="section-header">
+        <h2 class="section-title">{title}</h2>
+        {address && <p class="section-subtitle">{address}</p>}
+      </div>
+    </div>
+  )}
+  
+  <div class:list={['map-container', { 'contained': layout === 'contained' }]}>
+    {embedUrl ? (
+      <iframe
+        src={embedUrl}
+        width="100%"
+        height="100%"
+        style="border:0;"
+        allowfullscreen
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade"
+        title="Localização no mapa"
+      ></iframe>
+    ) : (
+      <div class="map-placeholder">
+        <svg class="placeholder-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+        </svg>
+        <p>Configure a URL do mapa no editor</p>
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  .map-section {
+    position: relative;
+  }
+  
+  .section-header {
+    text-align: center;
+    padding: 3rem 0 2rem;
+  }
+  
+  .section-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-secondary);
+    margin-bottom: 0.5rem;
+  }
+  
+  .section-subtitle {
+    color: #6b7280;
+  }
+  
+  .map-container {
+    height: 450px;
+    width: 100%;
+    background: #f3f4f6;
+  }
+  
+  .map-container.contained {
+    max-width: 1280px;
+    margin: 0 auto 3rem;
+    border-radius: 1rem;
+    overflow: hidden;
+  }
+  
+  .map-container iframe {
+    display: block;
+  }
+  
+  .map-placeholder {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+    gap: 1rem;
+  }
+  
+  .placeholder-icon {
+    width: 64px;
+    height: 64px;
+  }
+</style>

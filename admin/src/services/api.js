@@ -327,4 +327,71 @@ export const publicService = {
   },
 }
 
+
+
+// ============================================
+// POSTS (Blog)
+// ============================================
+export const postsService = {
+  list: async (params = {}) => {
+    const query = new URLSearchParams()
+    if (params.status) query.append('status', params.status)
+    if (params.category) query.append('category', params.category)
+    if (params.search) query.append('search', params.search)
+    if (params.limit) query.append('limit', params.limit)
+    if (params.offset) query.append('offset', params.offset)
+    const response = await api.get(`/api/posts?${query.toString()}`)
+    return response.data
+  },
+  
+  get: async (id) => {
+    const response = await api.get(`/api/posts/${id}`)
+    return response.data
+  },
+  
+  create: async (data) => {
+    const response = await api.post('/api/posts', data)
+    return response.data
+  },
+  
+  update: async (id, data) => {
+    const response = await api.put(`/api/posts/${id}`, data)
+    return response.data
+  },
+  
+  delete: async (id) => {
+    const response = await api.delete(`/api/posts/${id}`)
+    return response.data
+  },
+}
+
+// ============================================
+// CATEGORIES
+// ============================================
+export const categoriesService = {
+  list: async () => {
+    const response = await api.get('/api/categories')
+    return response.data
+  },
+  
+  get: async (id) => {
+    const response = await api.get(`/api/categories/${id}`)
+    return response.data
+  },
+  
+  create: async (data) => {
+    const response = await api.post('/api/categories', data)
+    return response.data
+  },
+  
+  update: async (id, data) => {
+    const response = await api.put(`/api/categories/${id}`, data)
+    return response.data
+  },
+  
+  delete: async (id) => {
+    const response = await api.delete(`/api/categories/${id}`)
+    return response.data
+  },
+}
 export default api

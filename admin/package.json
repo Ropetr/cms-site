@@ -19,7 +19,7 @@
     "react-router-dom": "^6.21.0",
     "@tanstack/react-query": "^5.17.0",
     "axios": "^1.6.0",
-    "lucide-react": "^0.303.0",
+    "lucide-react": "^0.562.0",
     "@tiptap/react": "^2.1.0",
     "@tiptap/starter-kit": "^2.1.0",
     "@tiptap/extension-image": "^2.1.0",

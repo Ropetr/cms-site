@@ -11,12 +11,14 @@ import {
   Mail,
   LogOut,
   ChevronLeft,
+  BookOpen,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
   { icon: FileText, label: 'Páginas', path: '/pages' },
+  { icon: BookOpen, label: 'Blog', path: '/posts' },
   { icon: Menu, label: 'Menus', path: '/menus' },
   { icon: Image, label: 'Mídia', path: '/media' },
   { icon: Mail, label: 'Contatos', path: '/contacts' },
@@ -59,38 +61,39 @@ export default function Sidebar({ collapsed, onToggle }) {
           <NavLink
             key={item.path}
             to={item.path}
+            end={item.path === '/'}
             className={({ isActive }) =>
               clsx(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors',
                 isActive
-                  ? 'bg-primary-500 text-white'
-                  : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                  ? 'bg-primary-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-800 hover:text-white'
               )
             }
           >
             <item.icon className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span className="text-sm">{item.label}</span>}
+            {!collapsed && <span>{item.label}</span>}
           </NavLink>
         ))}
       </nav>
 
-      {/* User & Logout */}
-      <div className="border-t border-gray-800 p-4">
+      {/* User Info & Logout */}
+      <div className="p-4 border-t border-gray-800">
         {!collapsed && user && (
-          <div className="mb-3 px-2">
-            <p className="text-sm font-medium truncate">{user.name}</p>
-            <p className="text-xs text-gray-500 truncate">{user.email}</p>
+          <div className="mb-3">
+            <p className="font-medium truncate">{user.name || 'Administrador'}</p>
+            <p className="text-sm text-gray-400 truncate">{user.email}</p>
           </div>
         )}
         <button
           onClick={logout}
           className={clsx(
-            'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg',
-            'text-gray-400 hover:bg-gray-800 hover:text-white transition-colors'
+            'flex items-center gap-3 w-full px-3 py-2 rounded-lg text-gray-300 hover:bg-gray-800 hover:text-white transition-colors',
+            collapsed && 'justify-center'
           )}
         >
-          <LogOut className="w-5 h-5 flex-shrink-0" />
-          {!collapsed && <span className="text-sm">Sair</span>}
+          <LogOut className="w-5 h-5" />
+          {!collapsed && <span>Sair</span>}
         </button>
       </div>
     </aside>

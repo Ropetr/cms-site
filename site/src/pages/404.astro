@@ -1,0 +1,71 @@
+---
+import Base from '../layouts/Base.astro';
+---
+
+<Base title="Página não encontrada">
+  <section class="not-found">
+    <div class="container mx-auto px-4 text-center">
+      <h1 class="error-code">404</h1>
+      <h2 class="error-title">Página não encontrada</h2>
+      <p class="error-text">
+        A página que você está procurando não existe ou foi movida.
+      </p>
+      <a href="/" class="back-home">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+        </svg>
+        Voltar ao início
+      </a>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .not-found {
+    min-height: 70vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f9fafb 0%, #e5e7eb 100%);
+  }
+  
+  .error-code {
+    font-size: clamp(6rem, 20vw, 12rem);
+    font-weight: 800;
+    color: var(--color-primary);
+    line-height: 1;
+    opacity: 0.2;
+  }
+  
+  .error-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-top: -2rem;
+    margin-bottom: 1rem;
+  }
+  
+  .error-text {
+    font-size: 1.125rem;
+    color: #6b7280;
+    margin-bottom: 2rem;
+  }
+  
+  .back-home {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 2rem;
+    background-color: var(--color-primary);
+    color: white;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+  }
+  
+  .back-home:hover {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+  }
+</style>

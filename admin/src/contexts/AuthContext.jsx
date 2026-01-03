@@ -23,7 +23,7 @@ export function AuthProvider({ children }) {
         // Verify token is still valid
         const response = await authService.me()
         if (response.success) {
-          setUser(response.data)
+          setUser(response.user)
           setIsAuthenticated(true)
         } else {
           logout()
@@ -40,9 +40,9 @@ export function AuthProvider({ children }) {
       const response = await authService.login(email, password)
       
       if (response.success) {
-        localStorage.setItem('auth_token', response.data.token)
-        localStorage.setItem('user', JSON.stringify(response.data.user))
-        setUser(response.data.user)
+        localStorage.setItem('auth_token', response.token)
+        localStorage.setItem('user', JSON.stringify(response.user))
+        setUser(response.user)
         setIsAuthenticated(true)
         toast.success('Login realizado com sucesso!')
         return { success: true }

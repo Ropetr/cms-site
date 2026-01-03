@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import { Card, CardBody, CardHeader, Button, Input, Select, Badge, Loading } from '../components/ui'
 import { postsService, categoriesService } from '../services/api'
 import MediaPicker from '../components/MediaPicker'
+import RichTextEditor from '../components/RichTextEditor'
 
 export default function PostEditorPage() {
   const { id } = useParams()
@@ -177,16 +178,12 @@ export default function PostEditorPage() {
                     <Sparkles className="w-4 h-4" /> Gerar com IA
                   </Button>
                 </div>
-                <textarea
+                <RichTextEditor
                   value={formData.content}
-                  onChange={(e) => handleChange('content', e.target.value)}
-                  placeholder="Conteúdo completo do post (suporta HTML)"
-                  rows={20}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 font-mono text-sm"
+                  onChange={(content) => handleChange('content', content)}
+                  placeholder="Comece a escrever o conteúdo do post..."
+                  minHeight="400px"
                 />
-                <p className="mt-1 text-xs text-gray-500">
-                  Suporta HTML. Em breve: editor visual TipTap.
-                </p>
               </div>
             </CardBody>
           </Card>

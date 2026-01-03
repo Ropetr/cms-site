@@ -1,0 +1,161 @@
+# Lighthouse CI - Monitoramento de Performance
+name: Lighthouse CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'admin/**'
+      - 'site/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'admin/**'
+      - 'site/**'
+  workflow_dispatch:
+
+jobs:
+  lighthouse-admin:
+    name: Lighthouse - Admin
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Instalar dependencias
+        working-directory: admin
+        run: npm ci
+
+      - name: Build Admin
+        working-directory: admin
+        run: npm run build
+        env:
+          VITE_API_URL: https://cms-site-api.planacacabamentos.workers.dev
+
+      - name: Iniciar servidor
+        working-directory: admin
+        run: |
+          npx vite preview --port 4173 &
+          sleep 5
+
+      - name: Rodar Lighthouse
+        id: lighthouse
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: |
+            http://localhost:4173/
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: Gerar relatorio
+        if: always()
+        run: |
+          echo "## Lighthouse Report - Admin" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metrica | Score |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Performance | ${{ steps.lighthouse.outputs.performance }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Accessibility | ${{ steps.lighthouse.outputs.accessibility }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Best Practices | ${{ steps.lighthouse.outputs.best-practices }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SEO | ${{ steps.lighthouse.outputs.seo }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[Ver relatorio completo](${{ steps.lighthouse.outputs.resultsPath }})" >> $GITHUB_STEP_SUMMARY
+
+  lighthouse-site:
+    name: Lighthouse - Site
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ hashFiles('site/package.json') != '' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Instalar dependencias
+        working-directory: site
+        run: npm install
+
+      - name: Build Site
+        working-directory: site
+        run: npm run build
+        env:
+          API_URL: https://cms-site-api.planacacabamentos.workers.dev
+
+      - name: Iniciar servidor
+        working-directory: site
+        run: |
+          npx astro preview --port 4321 &
+          sleep 5
+
+      - name: Rodar Lighthouse
+        id: lighthouse
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: |
+            http://localhost:4321/
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: Gerar relatorio
+        if: always()
+        run: |
+          echo "## Lighthouse Report - Site" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metrica | Score |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Performance | ${{ steps.lighthouse.outputs.performance }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Accessibility | ${{ steps.lighthouse.outputs.accessibility }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Best Practices | ${{ steps.lighthouse.outputs.best-practices }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SEO | ${{ steps.lighthouse.outputs.seo }} |" >> $GITHUB_STEP_SUMMARY
+
+  lighthouse-production:
+    name: Lighthouse - Producao
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Rodar Lighthouse em Producao
+        id: lighthouse_prod
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: |
+            https://cms-site-admin.pages.dev/
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: Gerar relatorio
+        if: always()
+        run: |
+          echo "## Lighthouse Report - Producao" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** https://cms-site-admin.pages.dev/" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metrica | Score |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Performance | ${{ steps.lighthouse_prod.outputs.performance }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Accessibility | ${{ steps.lighthouse_prod.outputs.accessibility }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Best Practices | ${{ steps.lighthouse_prod.outputs.best-practices }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SEO | ${{ steps.lighthouse_prod.outputs.seo }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Verificar thresholds
+        run: |
+          PERF="${{ steps.lighthouse_prod.outputs.performance }}"
+          if [ -n "$PERF" ] && [ "$PERF" -lt 50 ]; then
+            echo "::warning::Performance score ($PERF) esta abaixo de 50!"
+          fi

@@ -1,0 +1,97 @@
+---
+import Header from '../components/common/Header.astro';
+import Footer from '../components/common/Footer.astro';
+import WhatsAppFloat from '../components/common/WhatsAppFloat.astro';
+import { getSettings, getTheme, getNavigation } from '../lib/api';
+
+export interface Props {
+  title?: string;
+  description?: string;
+  ogImage?: string;
+}
+
+const { title, description, ogImage } = Astro.props;
+
+let settings: any = {};
+let theme: any = {};
+let navigation: any = [];
+
+try {
+  settings = await getSettings();
+  theme = await getTheme();
+  navigation = await getNavigation();
+} catch (e) {
+  console.error('Error fetching site data:', e);
+}
+
+const siteName = settings.site_name || 'Planac Distribuidora';
+const siteTagline = settings.site_tagline || '';
+const pageTitle = title ? `${title} | ${siteName}` : `${siteName} ${siteTagline ? '- ' + siteTagline : ''}`;
+const pageDescription = description || settings.default_meta_description || '';
+const logoUrl = settings.logo_url || '/logo.png';
+const whatsapp = settings.whatsapp || '';
+
+// Theme tokens
+let tokens: any = {};
+try {
+  tokens = typeof theme.tokens === 'string' ? JSON.parse(theme.tokens) : theme.tokens || {};
+} catch { tokens = {}; }
+
+const primaryColor = tokens.primary_color || theme.primary_color || '#AA000E';
+const secondaryColor = tokens.secondary_color || theme.secondary_color || '#1a1a1a';
+const headingFont = tokens.heading_font || theme.heading_font || 'Inter';
+const bodyFont = tokens.body_font || theme.body_font || 'Inter';
+---
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content={pageDescription} />
+  <title>{pageTitle}</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href={settings.favicon_url || '/favicon.png'} />
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content={pageTitle} />
+  <meta property="og:description" content={pageDescription} />
+  <meta property="og:type" content="website" />
+  {ogImage && <meta property="og:image" content={ogImage} />}
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href={`https://fonts.googleapis.com/css2?family=${headingFont}:wght@400;500;600;700&family=${bodyFont}:wght@400;500;600&display=swap`} rel="stylesheet" />
+  
+  <!-- Theme CSS Variables -->
+  <style define:vars={{ primaryColor, secondaryColor, headingFont, bodyFont }}>
+    :root {
+      --color-primary: var(--primaryColor);
+      --color-secondary: var(--secondaryColor);
+      --font-heading: var(--headingFont), system-ui, sans-serif;
+      --font-body: var(--bodyFont), system-ui, sans-serif;
+    }
+    
+    body {
+      font-family: var(--font-body);
+    }
+    
+    h1, h2, h3, h4, h5, h6 {
+      font-family: var(--font-heading);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-white text-gray-900">
+  <Header logo={logoUrl} siteName={siteName} navigation={navigation} />
+  
+  <main class="flex-1">
+    <slot />
+  </main>
+  
+  <Footer settings={settings} />
+  
+  {whatsapp && <WhatsAppFloat number={whatsapp} />}
+</body>
+</html>

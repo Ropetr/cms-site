@@ -1,0 +1,192 @@
+---
+export interface Props {
+  title?: string;
+  content: {
+    subtitle?: string;
+    members?: Array<{
+      name: string;
+      role?: string;
+      photo?: string;
+      bio?: string;
+      linkedin?: string;
+      email?: string;
+    }>;
+  };
+  layout?: string;
+  variant?: string;
+}
+
+const { title, content = {}, layout = 'grid-3', variant = 'default' } = Astro.props;
+
+const subtitle = content.subtitle || '';
+const members = content.members || [];
+const columns = layout === 'grid-2' ? 2 : layout === 'grid-4' ? 4 : 3;
+---
+
+<section class:list={['team-section', `variant-${variant}`]}>
+  <div class="container mx-auto px-4">
+    {(title || subtitle) && (
+      <div class="section-header">
+        {title && <h2 class="section-title">{title}</h2>}
+        {subtitle && <p class="section-subtitle">{subtitle}</p>}
+      </div>
+    )}
+    
+    <div class="team-grid" style={`--columns: ${columns}`}>
+      {members.map((member: any) => (
+        <div class="team-card">
+          {member.photo ? (
+            <img src={member.photo} alt={member.name} class="member-photo" loading="lazy" />
+          ) : (
+            <div class="member-photo placeholder">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+              </svg>
+            </div>
+          )}
+          
+          <div class="member-info">
+            <h3 class="member-name">{member.name}</h3>
+            {member.role && <p class="member-role">{member.role}</p>}
+            {member.bio && <p class="member-bio">{member.bio}</p>}
+            
+            {(member.linkedin || member.email) && (
+              <div class="member-links">
+                {member.linkedin && (
+                  <a href={member.linkedin} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                    </svg>
+                  </a>
+                )}
+                {member.email && (
+                  <a href={`mailto:${member.email}`} aria-label="Email">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .team-section {
+    padding: 5rem 0;
+  }
+  
+  .section-header {
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+  
+  .section-title {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: var(--color-secondary);
+    margin-bottom: 1rem;
+  }
+  
+  .section-subtitle {
+    font-size: 1.125rem;
+    color: #6b7280;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .team-grid {
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: 2rem;
+  }
+  
+  @media (min-width: 640px) {
+    .team-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .team-grid {
+      grid-template-columns: repeat(var(--columns, 3), 1fr);
+    }
+  }
+  
+  .team-card {
+    text-align: center;
+  }
+  
+  .member-photo {
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin: 0 auto 1.5rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  .member-photo.placeholder {
+    background: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+  }
+  
+  .member-photo.placeholder svg {
+    width: 80px;
+    height: 80px;
+  }
+  
+  .member-name {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-secondary);
+    margin-bottom: 0.25rem;
+  }
+  
+  .member-role {
+    color: var(--color-primary);
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+  }
+  
+  .member-bio {
+    font-size: 0.875rem;
+    color: #6b7280;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+  }
+  
+  .member-links {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+  
+  .member-links a {
+    color: #6b7280;
+    transition: color 0.3s ease;
+  }
+  
+  .member-links a:hover {
+    color: var(--color-primary);
+  }
+  
+  /* Variants */
+  .variant-cards .team-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  }
+  
+  .variant-highlighted {
+    background-color: #f9fafb;
+  }
+</style>

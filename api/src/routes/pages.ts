@@ -197,37 +197,46 @@ pagesRoutes.put('/:id', async (c) => {
       }
     }
     
-    const publishedAt = status === 'published' ? new Date().toISOString() : null;
+    // Construir query dinamicamente apenas com campos enviados
+    const updates: string[] = [];
+    const values: any[] = [];
     
-    await c.env.DB.prepare(`
-      UPDATE pages SET
-        title = COALESCE(?, title),
-        slug = COALESCE(?, slug),
-        page_type = COALESCE(?, page_type),
-        banner_image = ?,
-        banner_title = ?,
-        banner_subtitle = ?,
-        content = ?,
-        excerpt = ?,
-        meta_title = ?,
-        meta_description = ?,
-        meta_keywords = ?,
-        canonical_url = ?,
-        og_image = ?,
-        menu_id = ?,
-        position = COALESCE(?, position),
-        is_featured = ?,
-        status = COALESCE(?, status),
-        published_at = COALESCE(?, published_at),
-        updated_by = ?,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(
-      title, slug, page_type, banner_image, banner_title, banner_subtitle,
-      content, excerpt, meta_title, meta_description, meta_keywords,
-      canonical_url, og_image, menu_id, position, is_featured ? 1 : 0, status,
-      publishedAt, user.sub, id
-    ).run();
+    if (title !== undefined) { updates.push('title = ?'); values.push(title); }
+    if (slug !== undefined) { updates.push('slug = ?'); values.push(slug); }
+    if (page_type !== undefined) { updates.push('page_type = ?'); values.push(page_type); }
+    if (banner_image !== undefined) { updates.push('banner_image = ?'); values.push(banner_image || null); }
+    if (banner_title !== undefined) { updates.push('banner_title = ?'); values.push(banner_title || null); }
+    if (banner_subtitle !== undefined) { updates.push('banner_subtitle = ?'); values.push(banner_subtitle || null); }
+    if (content !== undefined) { updates.push('content = ?'); values.push(content || null); }
+    if (excerpt !== undefined) { updates.push('excerpt = ?'); values.push(excerpt || null); }
+    if (meta_title !== undefined) { updates.push('meta_title = ?'); values.push(meta_title || null); }
+    if (meta_description !== undefined) { updates.push('meta_description = ?'); values.push(meta_description || null); }
+    if (meta_keywords !== undefined) { updates.push('meta_keywords = ?'); values.push(meta_keywords || null); }
+    if (canonical_url !== undefined) { updates.push('canonical_url = ?'); values.push(canonical_url || null); }
+    if (og_image !== undefined) { updates.push('og_image = ?'); values.push(og_image || null); }
+    if (menu_id !== undefined) { updates.push('menu_id = ?'); values.push(menu_id || null); }
+    if (position !== undefined) { updates.push('position = ?'); values.push(position); }
+    if (is_featured !== undefined) { updates.push('is_featured = ?'); values.push(is_featured ? 1 : 0); }
+    if (status !== undefined) { 
+      updates.push('status = ?'); 
+      values.push(status);
+      if (status === 'published') {
+        updates.push('published_at = COALESCE(published_at, CURRENT_TIMESTAMP)');
+      }
+    }
+    
+    // Sempre atualizar updated_by e updated_at
+    updates.push('updated_by = ?');
+    values.push(user.sub);
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    
+    // Adicionar id no final
+    values.push(id);
+    
+    if (updates.length > 0) {
+      const query = `UPDATE pages SET ${updates.join(', ')} WHERE id = ?`;
+      await c.env.DB.prepare(query).bind(...values).run();
+    }
     
     // Atualizar seções se houver
     if (sections && Array.isArray(sections)) {

@@ -4,14 +4,12 @@ import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import PagesPage from './pages/PagesPage'
 import PageEditorPage from './pages/PageEditorPage'
-import {
-  MenusPage,
-  MediaPage,
-  ContactsPage,
-  ThemesPage,
-  SettingsPage,
-  UsersPage,
-} from './pages/PlaceholderPages'
+import MenusPage from './pages/MenusPage'
+import MediaPage from './pages/MediaPage'
+import ContactsPage from './pages/ContactsPage'
+import ThemesPage from './pages/ThemesPage'
+import SettingsPage from './pages/SettingsPage'
+import UsersPage from './pages/UsersPage'
 
 export default function App() {
   return (

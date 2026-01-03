@@ -28,6 +28,10 @@ id = "bcdc2b754e8049d38da38f0e004c7104"
 binding = "SESSIONS"
 id = "1e35f7e79bc645d09441f6200efb0183"
 
+# Workers AI
+[ai]
+binding = "AI"
+
 # Variáveis de ambiente (definir no dashboard ou via wrangler secret)
 [vars]
 ADMIN_ORIGIN = "https://cms-site-admin.pages.dev"
@@ -35,7 +39,3 @@ SITE_ORIGIN = "https://cms-site.pages.dev"
 
 # Secrets (configurar via: wrangler secret put JWT_SECRET)
 # JWT_SECRET = "seu-secret-aqui"
-
-# Triggers para cron jobs (opcional)
-# [triggers]
-# crons = ["0 0 * * *"] # Meia-noite todos os dias

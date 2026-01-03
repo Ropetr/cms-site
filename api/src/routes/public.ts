@@ -369,3 +369,119 @@ publicRoutes.get('/search', async (c) => {
     return c.json({ error: 'Erro na busca' }, 500);
   }
 });
+
+// ==================== BLOG ====================
+
+// Listar posts publicados
+publicRoutes.get('/posts', async (c) => {
+  try {
+    const limit = parseInt(c.req.query('limit') || '10');
+    const offset = parseInt(c.req.query('offset') || '0');
+    const category = c.req.query('category');
+    const featured = c.req.query('featured');
+    const source = c.req.query('source'); // 'latest' ou 'featured'
+
+    let query = `
+      SELECT p.id, p.title, p.slug, p.excerpt, p.featured_image, p.published_at, p.views,
+             c.name as category_name, c.slug as category_slug, c.color as category_color,
+             u.name as author_name
+      FROM posts p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN users u ON p.author_id = u.id
+      WHERE p.status = 'published'
+    `;
+    const params: any[] = [];
+
+    if (category) {
+      query += ' AND c.slug = ?';
+      params.push(category);
+    }
+
+    if (featured === 'true' || source === 'featured') {
+      query += ' AND p.is_featured = 1';
+    }
+
+    query += ' ORDER BY p.published_at DESC LIMIT ? OFFSET ?';
+    params.push(limit, offset);
+
+    const result = await c.env.DB.prepare(query).bind(...params).all();
+
+    // Total count
+    let countQuery = 'SELECT COUNT(*) as total FROM posts WHERE status = ?';
+    const countParams: any[] = ['published'];
+    if (category) {
+      countQuery = `SELECT COUNT(*) as total FROM posts p LEFT JOIN categories c ON p.category_id = c.id WHERE p.status = ? AND c.slug = ?`;
+      countParams.push(category);
+    }
+    const count = await c.env.DB.prepare(countQuery).bind(...countParams).first();
+
+    return c.json({
+      success: true,
+      data: result.results,
+      pagination: { total: count?.total || 0, limit, offset }
+    });
+  } catch (error) {
+    console.error('List public posts error:', error);
+    return c.json({ error: 'Erro ao listar posts' }, 500);
+  }
+});
+
+// Buscar post por slug
+publicRoutes.get('/posts/:slug', async (c) => {
+  try {
+    const slug = c.req.param('slug');
+
+    const post = await c.env.DB.prepare(`
+      SELECT p.*, c.name as category_name, c.slug as category_slug, c.color as category_color,
+             u.name as author_name
+      FROM posts p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN users u ON p.author_id = u.id
+      WHERE p.slug = ? AND p.status = 'published'
+    `).bind(slug).first();
+
+    if (!post) {
+      return c.json({ error: 'Post não encontrado' }, 404);
+    }
+
+    // Incrementar views
+    await c.env.DB.prepare('UPDATE posts SET views = views + 1 WHERE id = ?').bind(post.id).run();
+
+    // Posts relacionados (mesma categoria)
+    let related: any[] = [];
+    if (post.category_id) {
+      const relatedResult = await c.env.DB.prepare(`
+        SELECT id, title, slug, excerpt, featured_image, published_at
+        FROM posts
+        WHERE category_id = ? AND id != ? AND status = 'published'
+        ORDER BY published_at DESC
+        LIMIT 3
+      `).bind(post.category_id, post.id).all();
+      related = relatedResult.results;
+    }
+
+    return c.json({ success: true, data: { ...post, related } });
+  } catch (error) {
+    console.error('Get public post error:', error);
+    return c.json({ error: 'Erro ao buscar post' }, 500);
+  }
+});
+
+// Listar categorias (pública)
+publicRoutes.get('/categories', async (c) => {
+  try {
+    const result = await c.env.DB.prepare(`
+      SELECT c.id, c.name, c.slug, c.description, c.color, COUNT(p.id) as posts_count
+      FROM categories c
+      LEFT JOIN posts p ON p.category_id = c.id AND p.status = 'published'
+      GROUP BY c.id
+      HAVING posts_count > 0 OR 1=1
+      ORDER BY c.name ASC
+    `).all();
+
+    return c.json({ success: true, data: result.results });
+  } catch (error) {
+    console.error('List public categories error:', error);
+    return c.json({ error: 'Erro ao listar categorias' }, 500);
+  }
+});

@@ -1,0 +1,91 @@
+---
+import Base from '../layouts/Base.astro';
+import BlockRenderer from '../components/blocks/BlockRenderer.astro';
+import { getPage, getAllPages } from '../lib/api';
+
+export async function getStaticPaths() {
+  try {
+    const pages = await getAllPages();
+    return pages
+      .filter((p: any) => p.slug !== 'home' && p.status === 'published')
+      .map((page: any) => ({
+        params: { slug: page.slug },
+        props: { pageId: page.id },
+      }));
+  } catch (e) {
+    console.error('Error getting pages:', e);
+    return [];
+  }
+}
+
+const { slug } = Astro.params;
+
+let page: any = null;
+let sections: any[] = [];
+let notFound = false;
+
+try {
+  const data = await getPage(slug as string);
+  page = data.page || data;
+  sections = data.sections || [];
+  
+  if (!page || page.status !== 'published') {
+    notFound = true;
+  }
+} catch (e) {
+  console.error('Error fetching page:', e);
+  notFound = true;
+}
+
+if (notFound) {
+  return Astro.redirect('/404');
+}
+---
+
+<Base 
+  title={page?.meta_title || page?.title}
+  description={page?.meta_description}
+  ogImage={page?.og_image}
+>
+  {/* Page Header (optional) */}
+  {page?.title && page?.type !== 'landing' && (
+    <header class="page-header">
+      <div class="container mx-auto px-4">
+        <h1 class="page-title">{page.title}</h1>
+      </div>
+    </header>
+  )}
+  
+  {/* Page Content */}
+  {sections.length > 0 ? (
+    <BlockRenderer sections={sections} />
+  ) : (
+    <section class="empty-page">
+      <div class="container mx-auto px-4 text-center">
+        <p class="text-gray-500">Esta página ainda não tem conteúdo.</p>
+      </div>
+    </section>
+  )}
+</Base>
+
+<style>
+  .page-header {
+    background: linear-gradient(135deg, var(--color-primary) 0%, color-mix(in srgb, var(--color-primary) 80%, black) 100%);
+    color: white;
+    padding: 4rem 0;
+    margin-bottom: 2rem;
+  }
+  
+  .page-title {
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 700;
+    text-align: center;
+  }
+  
+  .empty-page {
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+</style>

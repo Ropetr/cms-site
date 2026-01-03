@@ -47,7 +47,3 @@ export function SettingsPage() {
 export function UsersPage() {
   return <PlaceholderPage title="Usuários" description="Gerencie os usuários do sistema" />
 }
-
-export function PageEditorPage() {
-  return <PlaceholderPage title="Editor de Página" description="Edite o conteúdo da página" />
-}

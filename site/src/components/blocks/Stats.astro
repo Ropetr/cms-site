@@ -1,0 +1,149 @@
+---
+export interface Props {
+  title?: string;
+  content: {
+    items?: Array<{
+      value: string;
+      label: string;
+      prefix?: string;
+      suffix?: string;
+    }>;
+  };
+  layout?: string;
+  variant?: string;
+}
+
+const { title, content = {}, layout = 'row', variant = 'default' } = Astro.props;
+
+const items = content.items || [];
+---
+
+<section class:list={['stats-section', `layout-${layout}`, `variant-${variant}`]}>
+  <div class="container mx-auto px-4">
+    {title && (
+      <div class="section-header">
+        <h2 class="section-title">{title}</h2>
+      </div>
+    )}
+    
+    <div class="stats-grid">
+      {items.map((item: any) => (
+        <div class="stat-item">
+          <div class="stat-value">
+            {item.prefix && <span class="stat-prefix">{item.prefix}</span>}
+            <span class="stat-number" data-value={item.value}>{item.value}</span>
+            {item.suffix && <span class="stat-suffix">{item.suffix}</span>}
+          </div>
+          <div class="stat-label">{item.label}</div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .stats-section {
+    padding: 4rem 0;
+  }
+  
+  .section-header {
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+  
+  .section-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-secondary);
+  }
+  
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2rem;
+    text-align: center;
+  }
+  
+  @media (min-width: 768px) {
+    .stats-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+  
+  /* Layout: row */
+  .layout-row .stats-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 3rem;
+  }
+  
+  .layout-row .stat-item {
+    flex: 1;
+    min-width: 150px;
+    max-width: 200px;
+  }
+  
+  .stat-item {
+    padding: 1.5rem;
+  }
+  
+  .stat-value {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 700;
+    color: var(--color-primary);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+  }
+  
+  .stat-prefix,
+  .stat-suffix {
+    font-size: 0.6em;
+  }
+  
+  .stat-label {
+    font-size: 1rem;
+    color: #6b7280;
+    font-weight: 500;
+  }
+  
+  /* Variants */
+  .variant-cards .stat-item {
+    background: white;
+    border-radius: 1rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  }
+  
+  .variant-highlighted {
+    background-color: #f9fafb;
+  }
+  
+  .variant-primary {
+    background-color: var(--color-primary);
+  }
+  
+  .variant-primary .section-title,
+  .variant-primary .stat-value {
+    color: white;
+  }
+  
+  .variant-primary .stat-label {
+    color: rgba(255, 255, 255, 0.8);
+  }
+  
+  .variant-dark {
+    background-color: var(--color-secondary);
+  }
+  
+  .variant-dark .section-title {
+    color: white;
+  }
+  
+  .variant-dark .stat-value {
+    color: var(--color-primary);
+  }
+  
+  .variant-dark .stat-label {
+    color: #9ca3af;
+  }
+</style>

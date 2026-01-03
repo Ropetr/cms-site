@@ -1,0 +1,145 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ==========================================
+  # Deploy API (Cloudflare Worker)
+  # ==========================================
+  deploy-api:
+    name: Deploy API
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    defaults:
+      run:
+        working-directory: api
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy to Cloudflare Workers
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  # ==========================================
+  # Deploy Admin (Cloudflare Pages)
+  # ==========================================
+  deploy-admin:
+    name: Deploy Admin
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: deploy-api
+    
+    defaults:
+      run:
+        working-directory: admin
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: admin/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_URL: https://cms-site-api.planacacabamentos.workers.dev
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: cms-site-admin
+          directory: admin/dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+  # ==========================================
+  # Deploy Site (Cloudflare Pages) - quando existir
+  # ==========================================
+  deploy-site:
+    name: Deploy Site
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: deploy-api
+    if: ${{ hashFiles('site/package.json') != '' }}
+    
+    defaults:
+      run:
+        working-directory: site
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          API_URL: https://cms-site-api.planacacabamentos.workers.dev
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: cms-site
+          directory: site/dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+  # ==========================================
+  # Notify Success
+  # ==========================================
+  notify:
+    name: Deploy Complete
+    needs: [deploy-api, deploy-admin]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check deploy status
+        run: |
+          if [[ "${{ needs.deploy-api.result }}" == "failure" || "${{ needs.deploy-admin.result }}" == "failure" ]]; then
+            echo "❌ Deploy failed!"
+            exit 1
+          fi
+          echo "✅ Deploy completed successfully!"
+          echo ""
+          echo "🌐 API: https://cms-site-api.planacacabamentos.workers.dev"
+          echo "🔧 Admin: https://cms-site-admin.pages.dev"

@@ -30,7 +30,7 @@ jobs:
 
       - name: Instalar dependencias Admin
         working-directory: admin
-        run: npm ci
+        run: npm install
 
       - name: Instalar Playwright
         working-directory: admin

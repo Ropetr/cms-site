@@ -1,0 +1,182 @@
+---
+export interface Props {
+  title?: string;
+  content: {
+    title?: string;
+    subtitle?: string;
+    image_url?: string;
+    cta_text?: string;
+    cta_url?: string;
+    cta_secondary_text?: string;
+    cta_secondary_url?: string;
+  };
+  layout?: string;
+  variant?: string;
+}
+
+const { title, content = {}, layout = 'fullwidth', variant = 'default' } = Astro.props;
+
+const heroTitle = content.title || title || '';
+const subtitle = content.subtitle || '';
+const imageUrl = content.image_url || '';
+const ctaText = content.cta_text || '';
+const ctaUrl = content.cta_url || '#';
+const ctaSecondaryText = content.cta_secondary_text || '';
+const ctaSecondaryUrl = content.cta_secondary_url || '#';
+
+const isOverlay = variant === 'overlay' || variant === 'dark';
+---
+
+<section class:list={['hero-banner', `layout-${layout}`, `variant-${variant}`]}>
+  {imageUrl && (
+    <div class="hero-image">
+      <img src={imageUrl} alt={heroTitle} loading="eager" />
+    </div>
+  )}
+  
+  <div class:list={['hero-content', { 'has-overlay': isOverlay && imageUrl }]}>
+    <div class="container mx-auto px-4">
+      <div class="hero-text">
+        {heroTitle && <h1 class="hero-title">{heroTitle}</h1>}
+        {subtitle && <p class="hero-subtitle">{subtitle}</p>}
+        
+        {(ctaText || ctaSecondaryText) && (
+          <div class="hero-buttons">
+            {ctaText && (
+              <a href={ctaUrl} class="btn btn-primary">{ctaText}</a>
+            )}
+            {ctaSecondaryText && (
+              <a href={ctaSecondaryUrl} class="btn btn-secondary">{ctaSecondaryText}</a>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero-banner {
+    position: relative;
+    min-height: 500px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+  }
+  
+  .layout-fullwidth {
+    min-height: 80vh;
+  }
+  
+  .layout-contained {
+    min-height: 400px;
+    margin: 2rem auto;
+    max-width: 1280px;
+    border-radius: 1rem;
+  }
+  
+  .hero-image {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+  
+  .hero-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  .hero-content {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    padding: 4rem 0;
+  }
+  
+  .hero-content.has-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to right, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.3) 100%);
+    z-index: -1;
+  }
+  
+  .hero-text {
+    max-width: 700px;
+  }
+  
+  .has-overlay .hero-text {
+    color: white;
+  }
+  
+  .hero-title {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 1rem;
+  }
+  
+  .hero-subtitle {
+    font-size: clamp(1rem, 2vw, 1.25rem);
+    opacity: 0.9;
+    margin-bottom: 2rem;
+    max-width: 600px;
+  }
+  
+  .hero-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.875rem 2rem;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    transition: all 0.3s ease;
+    text-decoration: none;
+  }
+  
+  .btn-primary {
+    background-color: var(--color-primary);
+    color: white;
+  }
+  
+  .btn-primary:hover {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+  }
+  
+  .btn-secondary {
+    background-color: white;
+    color: var(--color-secondary);
+    border: 2px solid currentColor;
+  }
+  
+  .btn-secondary:hover {
+    background-color: var(--color-secondary);
+    color: white;
+  }
+  
+  .variant-centered .hero-text {
+    text-align: center;
+    margin: 0 auto;
+  }
+  
+  .variant-centered .hero-buttons {
+    justify-content: center;
+  }
+  
+  /* Variant: light (sem overlay) */
+  .variant-light {
+    background-color: #f9fafb;
+  }
+  
+  .variant-light .hero-text {
+    color: #1f2937;
+  }
+</style>

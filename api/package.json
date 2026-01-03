@@ -1,0 +1,22 @@
+{
+  "name": "cms-site-api",
+  "version": "1.0.0",
+  "description": "API do CMS Site - Cloudflare Worker",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:prod": "wrangler deploy --env production",
+    "tail": "wrangler tail",
+    "db:migrate": "wrangler d1 execute cms-site-db --file=./migrations/schema.sql",
+    "db:seed": "wrangler d1 execute cms-site-db --file=./migrations/seed.sql"
+  },
+  "dependencies": {
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240117.0",
+    "typescript": "^5.3.0",
+    "wrangler": "^3.22.0"
+  }
+}

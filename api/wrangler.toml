@@ -1,0 +1,41 @@
+# ==========================================
+# CMS Site API - Cloudflare Worker
+# ==========================================
+
+name = "cms-site-api"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# Ambiente de produção
+[env.production]
+vars = { ENVIRONMENT = "production" }
+
+# Bindings
+[[d1_databases]]
+binding = "DB"
+database_name = "cms-site-db"
+database_id = "8961e5db-b486-4bc5-bf35-be81240be063"
+
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "cms-site-media"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "bcdc2b754e8049d38da38f0e004c7104"
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "1e35f7e79bc645d09441f6200efb0183"
+
+# Variáveis de ambiente (definir no dashboard ou via wrangler secret)
+[vars]
+ADMIN_ORIGIN = "https://cms-site-admin.pages.dev"
+SITE_ORIGIN = "https://cms-site.pages.dev"
+
+# Secrets (configurar via: wrangler secret put JWT_SECRET)
+# JWT_SECRET = "seu-secret-aqui"
+
+# Triggers para cron jobs (opcional)
+# [triggers]
+# crons = ["0 0 * * *"] # Meia-noite todos os dias

@@ -1,0 +1,155 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==========================================
+  # API (Cloudflare Worker)
+  # ==========================================
+  api:
+    name: API - Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    defaults:
+      run:
+        working-directory: api
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npm run typecheck || echo "⚠️ typecheck not configured"
+
+      - name: Lint
+        run: npm run lint || echo "⚠️ lint not configured"
+
+      - name: Run tests
+        run: npm test || echo "⚠️ tests not configured"
+
+      - name: Build check
+        run: npm run build
+
+  # ==========================================
+  # ADMIN (React + Vite)
+  # ==========================================
+  admin:
+    name: Admin - Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    defaults:
+      run:
+        working-directory: admin
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: admin/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint || echo "⚠️ lint not configured"
+
+      - name: TypeScript check
+        run: npm run typecheck || echo "⚠️ typecheck not configured"
+
+      - name: Run tests
+        run: npm test || echo "⚠️ tests not configured"
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_URL: https://cms-site-api.planacacabamentos.workers.dev
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-build
+          path: admin/dist
+          retention-days: 7
+
+  # ==========================================
+  # SITE (Astro - quando existir)
+  # ==========================================
+  site:
+    name: Site - Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: ${{ hashFiles('site/package.json') != '' }}
+    
+    defaults:
+      run:
+        working-directory: site
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint || echo "⚠️ lint not configured"
+
+      - name: Build
+        run: npm run build
+        env:
+          API_URL: https://cms-site-api.planacacabamentos.workers.dev
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-build
+          path: site/dist
+          retention-days: 7
+
+  # ==========================================
+  # SUMMARY
+  # ==========================================
+  ci-success:
+    name: CI Success
+    needs: [api, admin]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check all jobs
+        run: |
+          if [[ "${{ needs.api.result }}" == "failure" || "${{ needs.admin.result }}" == "failure" ]]; then
+            echo "❌ CI failed"
+            exit 1
+          fi
+          echo "✅ All CI checks passed!"

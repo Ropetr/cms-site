@@ -103,7 +103,7 @@ export default function LoginPage() {
                 Credenciais de teste:
               </p>
               <p className="text-xs text-gray-400 text-center mt-1">
-                admin@cmssite.com / admin123
+                admin@cmssite.com / Planac@Admin2026
               </p>
             </div>
           </CardBody>

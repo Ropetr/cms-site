@@ -161,13 +161,7 @@ export const mediaService = {
     return response.data
   },
   
-  upload: async (file, metadata = {}) => {
-    const formData = new FormData()
-    formData.append('file', file)
-    Object.entries(metadata).forEach(([key, value]) => {
-      formData.append(key, value)
-    })
-    
+  upload: async (formData) => {
     const response = await api.post('/api/media/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -183,11 +177,6 @@ export const mediaService = {
   
   delete: async (id) => {
     const response = await api.delete(`/api/media/${id}`)
-    return response.data
-  },
-  
-  updateFocalPoint: async (id, focalX, focalY) => {
-    const response = await api.put(`/api/media/${id}`, { focal_x: focalX, focal_y: focalY })
     return response.data
   },
 }
@@ -272,13 +261,43 @@ export const contactsService = {
     return response.data
   },
   
-  updateStatus: async (id, status, notes = null) => {
-    const response = await api.put(`/api/contacts/${id}`, { status, notes })
+  update: async (id, data) => {
+    const response = await api.put(`/api/contacts/${id}`, data)
     return response.data
   },
   
   delete: async (id) => {
     const response = await api.delete(`/api/contacts/${id}`)
+    return response.data
+  },
+}
+
+// ============================================
+// USERS
+// ============================================
+export const usersService = {
+  list: async () => {
+    const response = await api.get('/api/users')
+    return response.data
+  },
+  
+  get: async (id) => {
+    const response = await api.get(`/api/users/${id}`)
+    return response.data
+  },
+  
+  create: async (data) => {
+    const response = await api.post('/api/users', data)
+    return response.data
+  },
+  
+  update: async (id, data) => {
+    const response = await api.put(`/api/users/${id}`, data)
+    return response.data
+  },
+  
+  delete: async (id) => {
+    const response = await api.delete(`/api/users/${id}`)
     return response.data
   },
 }

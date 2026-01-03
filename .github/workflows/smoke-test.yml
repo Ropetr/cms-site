@@ -1,0 +1,178 @@
+# Smoke Test - Verificacao pos-deploy
+name: Smoke Test
+
+on:
+  # Roda apos deploy
+  workflow_run:
+    workflows: ["Deploy"]
+    types:
+      - completed
+    branches: [main]
+  
+  # Permite execucao manual
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    name: Smoke Test
+    runs-on: ubuntu-latest
+    # Só roda se o deploy foi bem-sucedido
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Aguardar propagacao do deploy
+        run: |
+          echo "Aguardando 30 segundos para propagacao do deploy..."
+          sleep 30
+
+      - name: Testar API - Health Check
+        id: api_health
+        continue-on-error: true
+        run: |
+          echo "Testando API..."
+          
+          API_URL="https://cms-site-api.planacacabamentos.workers.dev"
+          
+          # Teste 1: API responde
+          echo "1. Verificando se API responde..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL" --max-time 30)
+          
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 500 ]; then
+            echo "API respondeu com HTTP $HTTP_CODE"
+          else
+            echo "ERRO: API retornou HTTP $HTTP_CODE"
+            exit 1
+          fi
+          
+          # Teste 2: Endpoint /api/pages responde
+          echo "2. Verificando endpoint /api/pages..."
+          PAGES_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/api/pages" --max-time 10 || echo "000")
+          echo "Pages endpoint: HTTP $PAGES_CODE"
+          
+          # Teste 3: Endpoint /api/menus responde
+          echo "3. Verificando endpoint /api/menus..."
+          MENUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/api/menus" --max-time 10 || echo "000")
+          echo "Menus endpoint: HTTP $MENUS_CODE"
+          
+          echo "api_status=success" >> $GITHUB_OUTPUT
+
+      - name: Testar Admin - Carregamento
+        id: admin_health
+        continue-on-error: true
+        run: |
+          echo "Testando Admin..."
+          
+          ADMIN_URL="https://cms-site-admin.pages.dev"
+          
+          # Teste 1: Admin responde
+          echo "1. Verificando se admin responde..."
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$ADMIN_URL" --max-time 30)
+          
+          if [ "$HTTP_CODE" -eq 200 ]; then
+            echo "Admin respondeu com HTTP $HTTP_CODE"
+          else
+            echo "AVISO: Admin retornou HTTP $HTTP_CODE"
+          fi
+          
+          # Teste 2: Verificar se HTML contem elementos esperados
+          echo "2. Verificando conteudo HTML..."
+          HTML=$(curl -s "$ADMIN_URL" --max-time 30)
+          
+          if echo "$HTML" | grep -q "<div id=\"root\""; then
+            echo "React root element encontrado"
+          else
+            echo "AVISO: React root element nao encontrado"
+          fi
+          
+          echo "admin_status=success" >> $GITHUB_OUTPUT
+
+      - name: Gerar Relatorio
+        if: always()
+        run: |
+          echo "## Smoke Test Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Data:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Resultados" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Componente | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.api_health.outcome }}" == "success" ]; then
+            echo "| API | Passou |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| API | FALHOU |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ steps.admin_health.outcome }}" == "success" ]; then
+            echo "| Admin | Passou |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Admin | FALHOU |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### URLs Testadas" >> $GITHUB_STEP_SUMMARY
+          echo "- API: https://cms-site-api.planacacabamentos.workers.dev" >> $GITHUB_STEP_SUMMARY
+          echo "- Admin: https://cms-site-admin.pages.dev" >> $GITHUB_STEP_SUMMARY
+
+      - name: Criar Issue se falhou
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const existingIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'smoke-test-failure'
+            });
+            
+            const issueBody = '## Smoke Test Falhou!\n\n' +
+              '**Commit:** `' + context.sha.substring(0, 7) + '`\n' +
+              '**Data:** ' + new Date().toISOString() + '\n\n' +
+              '### O que verificar:\n' +
+              '1. API esta respondendo em https://cms-site-api.planacacabamentos.workers.dev\n' +
+              '2. Admin esta carregando em https://cms-site-admin.pages.dev\n' +
+              '3. Verificar logs do Cloudflare Workers\n\n' +
+              '---\n*Issue automatica do Smoke Test*';
+
+            if (existingIssues.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '[Smoke Test] Deploy pode estar com problemas',
+                body: issueBody,
+                labels: ['smoke-test-failure', 'bug', 'automated']
+              });
+            }
+
+      - name: Fechar Issue se passou
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const existingIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'smoke-test-failure'
+            });
+            
+            for (const issue of existingIssues.data) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: 'Smoke test passou! Issue fechada automaticamente.\n\nCommit: `' + context.sha.substring(0, 7) + '`'
+              });
+            }

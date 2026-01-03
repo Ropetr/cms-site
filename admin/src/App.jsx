@@ -10,12 +10,16 @@ import ContactsPage from './pages/ContactsPage'
 import ThemesPage from './pages/ThemesPage'
 import SettingsPage from './pages/SettingsPage'
 import UsersPage from './pages/UsersPage'
+import PreviewPage from './pages/PreviewPage'
 
 export default function App() {
   return (
     <Routes>
       {/* Public routes */}
       <Route path="/login" element={<LoginPage />} />
+
+      {/* Preview route - sem layout do admin */}
+      <Route path="/preview/:slug" element={<PreviewPage />} />
 
       {/* Protected routes */}
       <Route element={<AdminLayout />}>

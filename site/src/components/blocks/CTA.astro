@@ -1,0 +1,187 @@
+---
+export interface Props {
+  title?: string;
+  content: {
+    text?: string;
+    cta_text?: string;
+    cta_url?: string;
+    cta_secondary_text?: string;
+    cta_secondary_url?: string;
+    background_image?: string;
+  };
+  layout?: string;
+  variant?: string;
+}
+
+const { title, content = {}, layout = 'default', variant = 'primary' } = Astro.props;
+
+const text = content.text || '';
+const ctaText = content.cta_text || '';
+const ctaUrl = content.cta_url || '#';
+const ctaSecondaryText = content.cta_secondary_text || '';
+const ctaSecondaryUrl = content.cta_secondary_url || '#';
+const backgroundImage = content.background_image || '';
+---
+
+<section 
+  class:list={['cta-section', `layout-${layout}`, `variant-${variant}`]}
+  style={backgroundImage ? `background-image: url(${backgroundImage})` : ''}
+>
+  <div class="cta-overlay"></div>
+  <div class="container mx-auto px-4">
+    <div class="cta-content">
+      {title && <h2 class="cta-title">{title}</h2>}
+      {text && <p class="cta-text">{text}</p>}
+      
+      {(ctaText || ctaSecondaryText) && (
+        <div class="cta-buttons">
+          {ctaText && (
+            <a href={ctaUrl} class="btn btn-primary">{ctaText}</a>
+          )}
+          {ctaSecondaryText && (
+            <a href={ctaSecondaryUrl} class="btn btn-secondary">{ctaSecondaryText}</a>
+          )}
+        </div>
+      )}
+    </div>
+  </div>
+</section>
+
+<style>
+  .cta-section {
+    position: relative;
+    padding: 5rem 0;
+    background-size: cover;
+    background-position: center;
+    overflow: hidden;
+  }
+  
+  .cta-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+  
+  .cta-content {
+    position: relative;
+    z-index: 10;
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  
+  .cta-title {
+    font-size: clamp(1.75rem, 4vw, 2.5rem);
+    font-weight: 700;
+    margin-bottom: 1rem;
+  }
+  
+  .cta-text {
+    font-size: 1.125rem;
+    margin-bottom: 2rem;
+    opacity: 0.9;
+  }
+  
+  .cta-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+  }
+  
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 2rem;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+  }
+  
+  /* Variant: Primary (vermelho) */
+  .variant-primary {
+    background-color: var(--color-primary);
+    color: white;
+  }
+  
+  .variant-primary .cta-overlay {
+    background: linear-gradient(135deg, var(--color-primary) 0%, color-mix(in srgb, var(--color-primary) 70%, black) 100%);
+  }
+  
+  .variant-primary .btn-primary {
+    background: white;
+    color: var(--color-primary);
+  }
+  
+  .variant-primary .btn-secondary {
+    background: transparent;
+    border: 2px solid white;
+    color: white;
+  }
+  
+  /* Variant: Dark */
+  .variant-dark {
+    background-color: var(--color-secondary);
+    color: white;
+  }
+  
+  .variant-dark .cta-overlay {
+    background: var(--color-secondary);
+  }
+  
+  .variant-dark .btn-primary {
+    background: var(--color-primary);
+    color: white;
+  }
+  
+  .variant-dark .btn-secondary {
+    background: transparent;
+    border: 2px solid white;
+    color: white;
+  }
+  
+  /* Variant: Light */
+  .variant-light {
+    background-color: #f9fafb;
+    color: var(--color-secondary);
+  }
+  
+  .variant-light .btn-primary {
+    background: var(--color-primary);
+    color: white;
+  }
+  
+  .variant-light .btn-secondary {
+    background: transparent;
+    border: 2px solid var(--color-secondary);
+    color: var(--color-secondary);
+  }
+  
+  /* Variant: Image */
+  .variant-image .cta-overlay {
+    background: rgba(0, 0, 0, 0.6);
+  }
+  
+  .variant-image {
+    color: white;
+  }
+  
+  .variant-image .btn-primary {
+    background: var(--color-primary);
+    color: white;
+  }
+  
+  .variant-image .btn-secondary {
+    background: transparent;
+    border: 2px solid white;
+    color: white;
+  }
+  
+  /* Button hover effects */
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+</style>

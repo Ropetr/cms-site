@@ -1,0 +1,177 @@
+---
+export interface Props {
+  title?: string;
+  content: {
+    items?: Array<{
+      question: string;
+      answer: string;
+    }>;
+  };
+  layout?: string;
+  variant?: string;
+}
+
+const { title, content = {}, layout = 'default', variant = 'default' } = Astro.props;
+
+const items = content.items || [];
+
+// Schema.org FAQPage
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": items.map((item: any) => ({
+    "@type": "Question",
+    "name": item.question,
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": item.answer
+    }
+  }))
+};
+---
+
+<section class:list={['faq-section', `variant-${variant}`]}>
+  <div class="container mx-auto px-4">
+    {title && (
+      <div class="section-header">
+        <h2 class="section-title">{title}</h2>
+      </div>
+    )}
+    
+    <div class="faq-list">
+      {items.map((item: any, index: number) => (
+        <div class="faq-item" data-faq-item>
+          <button class="faq-question" data-faq-trigger aria-expanded="false">
+            <span>{item.question}</span>
+            <svg class="faq-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </button>
+          <div class="faq-answer" data-faq-content>
+            <div class="faq-answer-inner" set:html={item.answer} />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<!-- Schema.org JSON-LD -->
+<script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+
+<script>
+  // FAQ Accordion
+  document.querySelectorAll('[data-faq-trigger]').forEach(trigger => {
+    trigger.addEventListener('click', () => {
+      const item = trigger.closest('[data-faq-item]');
+      const content = item?.querySelector('[data-faq-content]') as HTMLElement;
+      const isOpen = trigger.getAttribute('aria-expanded') === 'true';
+      
+      // Close all others
+      document.querySelectorAll('[data-faq-item]').forEach(otherItem => {
+        if (otherItem !== item) {
+          const otherTrigger = otherItem.querySelector('[data-faq-trigger]');
+          const otherContent = otherItem.querySelector('[data-faq-content]') as HTMLElement;
+          otherTrigger?.setAttribute('aria-expanded', 'false');
+          if (otherContent) otherContent.style.maxHeight = '0';
+        }
+      });
+      
+      // Toggle current
+      trigger.setAttribute('aria-expanded', String(!isOpen));
+      if (content) {
+        content.style.maxHeight = isOpen ? '0' : content.scrollHeight + 'px';
+      }
+    });
+  });
+</script>
+
+<style>
+  .faq-section {
+    padding: 4rem 0;
+  }
+  
+  .section-header {
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+  
+  .section-title {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: var(--color-secondary);
+  }
+  
+  .faq-list {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  
+  .faq-item {
+    border-bottom: 1px solid #e5e7eb;
+  }
+  
+  .faq-question {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 0;
+    text-align: left;
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-secondary);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: color 0.3s ease;
+  }
+  
+  .faq-question:hover {
+    color: var(--color-primary);
+  }
+  
+  .faq-icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    transition: transform 0.3s ease;
+  }
+  
+  .faq-question[aria-expanded="true"] .faq-icon {
+    transform: rotate(180deg);
+  }
+  
+  .faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  
+  .faq-answer-inner {
+    padding-bottom: 1.5rem;
+    color: #6b7280;
+    line-height: 1.7;
+  }
+  
+  .faq-answer-inner :global(p) {
+    margin-bottom: 1rem;
+  }
+  
+  .faq-answer-inner :global(p:last-child) {
+    margin-bottom: 0;
+  }
+  
+  /* Variants */
+  .variant-cards .faq-item {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 0 1.5rem;
+  }
+  
+  .variant-highlighted {
+    background-color: #f9fafb;
+  }
+</style>

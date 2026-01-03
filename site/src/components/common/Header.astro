@@ -1,0 +1,106 @@
+---
+export interface Props {
+  logo: string;
+  siteName: string;
+  navigation: any[];
+}
+
+const { logo, siteName, navigation = [] } = Astro.props;
+
+// Get header menu items
+const headerMenu = navigation.find((m: any) => m.location === 'header');
+let menuItems: any[] = [];
+try {
+  menuItems = headerMenu?.items ? (typeof headerMenu.items === 'string' ? JSON.parse(headerMenu.items) : headerMenu.items) : [];
+} catch { menuItems = []; }
+---
+
+<header class="bg-white shadow-sm sticky top-0 z-50">
+  <div class="container mx-auto px-4">
+    <div class="flex items-center justify-between h-16 md:h-20">
+      <!-- Logo -->
+      <a href="/" class="flex items-center gap-3">
+        {logo ? (
+          <img src={logo} alt={siteName} class="h-10 md:h-12 w-auto" />
+        ) : (
+          <span class="text-xl font-bold text-primary-500">{siteName}</span>
+        )}
+      </a>
+      
+      <!-- Desktop Navigation -->
+      <nav class="hidden md:flex items-center gap-6">
+        {menuItems.map((item: any) => (
+          <a
+            href={item.url || '/'}
+            target={item.target || '_self'}
+            class="text-gray-700 hover:text-primary-500 font-medium transition-colors"
+          >
+            {item.label}
+          </a>
+        ))}
+        <a
+          href="#contato"
+          class="px-5 py-2 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors font-medium"
+        >
+          Contato
+        </a>
+      </nav>
+      
+      <!-- Mobile Menu Button -->
+      <button
+        id="mobile-menu-btn"
+        class="md:hidden p-2 text-gray-700 hover:text-primary-500"
+        aria-label="Abrir menu"
+      >
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+      </button>
+    </div>
+  </div>
+  
+  <!-- Mobile Menu -->
+  <div id="mobile-menu" class="hidden md:hidden bg-white border-t">
+    <nav class="container mx-auto px-4 py-4 flex flex-col gap-3">
+      {menuItems.map((item: any) => (
+        <a
+          href={item.url || '/'}
+          target={item.target || '_self'}
+          class="text-gray-700 hover:text-primary-500 font-medium py-2"
+        >
+          {item.label}
+        </a>
+      ))}
+      <a
+        href="#contato"
+        class="px-5 py-3 bg-primary-500 text-white rounded-lg text-center hover:bg-primary-600 transition-colors font-medium"
+      >
+        Contato
+      </a>
+    </nav>
+  </div>
+</header>
+
+<script>
+  const btn = document.getElementById('mobile-menu-btn');
+  const menu = document.getElementById('mobile-menu');
+  
+  btn?.addEventListener('click', () => {
+    menu?.classList.toggle('hidden');
+  });
+</script>
+
+<style>
+  .text-primary-500 {
+    color: var(--color-primary);
+  }
+  .bg-primary-500 {
+    background-color: var(--color-primary);
+  }
+  .hover\:text-primary-500:hover {
+    color: var(--color-primary);
+  }
+  .hover\:bg-primary-600:hover {
+    background-color: color-mix(in srgb, var(--color-primary) 90%, black);
+  }
+</style>

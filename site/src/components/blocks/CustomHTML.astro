@@ -1,0 +1,79 @@
+---
+export interface Props {
+  title?: string;
+  content: {
+    html?: string;
+  };
+  layout?: string;
+  variant?: string;
+}
+
+const { title, content = {}, layout = 'default', variant = 'default' } = Astro.props;
+
+const html = content.html || '';
+---
+
+<section class:list={['custom-html-section', `layout-${layout}`, `variant-${variant}`]}>
+  {layout !== 'fullwidth' && (
+    <div class="container mx-auto px-4">
+      {title && <h2 class="section-title">{title}</h2>}
+      <div class="custom-content" set:html={html} />
+    </div>
+  )}
+  
+  {layout === 'fullwidth' && (
+    <>
+      {title && (
+        <div class="container mx-auto px-4">
+          <h2 class="section-title">{title}</h2>
+        </div>
+      )}
+      <div class="custom-content" set:html={html} />
+    </>
+  )}
+</section>
+
+<style>
+  .custom-html-section {
+    padding: 3rem 0;
+  }
+  
+  .layout-fullwidth {
+    padding: 0;
+  }
+  
+  .section-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-secondary);
+    margin-bottom: 1.5rem;
+    text-align: center;
+  }
+  
+  .custom-content {
+    /* Reset básico para conteúdo externo */
+  }
+  
+  .custom-content :global(img) {
+    max-width: 100%;
+    height: auto;
+  }
+  
+  .custom-content :global(iframe) {
+    max-width: 100%;
+  }
+  
+  /* Variants */
+  .variant-highlighted {
+    background-color: #f9fafb;
+  }
+  
+  .variant-dark {
+    background-color: var(--color-secondary);
+    color: white;
+  }
+  
+  .variant-dark .section-title {
+    color: white;
+  }
+</style>

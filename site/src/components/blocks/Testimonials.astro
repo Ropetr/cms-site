@@ -1,0 +1,208 @@
+---
+export interface Props {
+  title?: string;
+  content: {
+    items?: Array<{
+      name: string;
+      role?: string;
+      company?: string;
+      text: string;
+      avatar?: string;
+      rating?: number;
+    }>;
+  };
+  layout?: string;
+  variant?: string;
+}
+
+const { title, content = {}, layout = 'slider', variant = 'default' } = Astro.props;
+
+const items = content.items || [];
+---
+
+<section class:list={['testimonials', `layout-${layout}`, `variant-${variant}`]}>
+  <div class="container mx-auto px-4">
+    {title && (
+      <div class="section-header">
+        <h2 class="section-title">{title}</h2>
+      </div>
+    )}
+    
+    <div class="testimonials-grid">
+      {items.map((item: any) => (
+        <div class="testimonial-card">
+          {item.rating && (
+            <div class="rating">
+              {[...Array(5)].map((_, i) => (
+                <svg 
+                  class:list={['star', { 'filled': i < item.rating }]} 
+                  fill="currentColor" 
+                  viewBox="0 0 20 20"
+                >
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                </svg>
+              ))}
+            </div>
+          )}
+          
+          <blockquote class="testimonial-text">"{item.text}"</blockquote>
+          
+          <div class="testimonial-author">
+            {item.avatar && (
+              <img src={item.avatar} alt={item.name} class="author-avatar" />
+            )}
+            <div class="author-info">
+              <p class="author-name">{item.name}</p>
+              {(item.role || item.company) && (
+                <p class="author-role">
+                  {item.role}{item.role && item.company && ' - '}{item.company}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .testimonials {
+    padding: 5rem 0;
+  }
+  
+  .section-header {
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+  
+  .section-title {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: var(--color-secondary);
+  }
+  
+  .testimonials-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+  
+  @media (min-width: 768px) {
+    .testimonials-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .testimonials-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  
+  .testimonial-card {
+    background: white;
+    padding: 2rem;
+    border-radius: 1rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  }
+  
+  .rating {
+    display: flex;
+    gap: 0.25rem;
+    margin-bottom: 1rem;
+  }
+  
+  .star {
+    width: 20px;
+    height: 20px;
+    color: #e5e7eb;
+  }
+  
+  .star.filled {
+    color: #fbbf24;
+  }
+  
+  .testimonial-text {
+    font-size: 1.125rem;
+    line-height: 1.7;
+    color: #4b5563;
+    margin-bottom: 1.5rem;
+    font-style: italic;
+  }
+  
+  .testimonial-author {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .author-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  
+  .author-name {
+    font-weight: 600;
+    color: var(--color-secondary);
+  }
+  
+  .author-role {
+    font-size: 0.875rem;
+    color: #6b7280;
+  }
+  
+  /* Layout: slider */
+  .layout-slider .testimonials-grid {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    gap: 1.5rem;
+    padding-bottom: 1rem;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .layout-slider .testimonial-card {
+    flex: 0 0 300px;
+    scroll-snap-align: start;
+  }
+  
+  @media (min-width: 768px) {
+    .layout-slider .testimonial-card {
+      flex: 0 0 400px;
+    }
+  }
+  
+  /* Variants */
+  .variant-cards .testimonial-card {
+    border: 1px solid #e5e7eb;
+    box-shadow: none;
+  }
+  
+  .variant-highlighted {
+    background-color: #f9fafb;
+  }
+  
+  .variant-dark {
+    background-color: var(--color-secondary);
+  }
+  
+  .variant-dark .section-title {
+    color: white;
+  }
+  
+  .variant-dark .testimonial-card {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  
+  .variant-dark .testimonial-text,
+  .variant-dark .author-name {
+    color: white;
+  }
+  
+  .variant-dark .author-role {
+    color: #9ca3af;
+  }
+</style>

@@ -1,0 +1,60 @@
+---
+import Base from '../layouts/Base.astro';
+import BlockRenderer from '../components/blocks/BlockRenderer.astro';
+import { getPage } from '../lib/api';
+
+let page: any = null;
+let sections: any[] = [];
+
+try {
+  const data = await getPage('home');
+  page = data.page || data;
+  sections = data.sections || [];
+} catch (e) {
+  console.error('Error fetching home page:', e);
+}
+---
+
+<Base 
+  title={page?.meta_title || page?.title}
+  description={page?.meta_description}
+  ogImage={page?.og_image}
+>
+  {sections.length > 0 ? (
+    <BlockRenderer sections={sections} />
+  ) : (
+    <section class="hero-placeholder">
+      <div class="container mx-auto px-4 text-center">
+        <h1 class="text-4xl font-bold mb-4">Bem-vindo ao CMS Site</h1>
+        <p class="text-xl text-gray-600 mb-8">
+          Configure o conteúdo da página inicial no painel administrativo.
+        </p>
+        <a 
+          href="https://cms-site-admin.pages.dev" 
+          target="_blank"
+          class="inline-block px-6 py-3 bg-primary-500 text-white rounded-lg hover:bg-primary-600 transition-colors"
+        >
+          Acessar Admin
+        </a>
+      </div>
+    </section>
+  )}
+</Base>
+
+<style>
+  .hero-placeholder {
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f9fafb 0%, #e5e7eb 100%);
+  }
+  
+  .bg-primary-500 {
+    background-color: var(--color-primary, #AA000E);
+  }
+  
+  .hover\:bg-primary-600:hover {
+    background-color: color-mix(in srgb, var(--color-primary, #AA000E) 90%, black);
+  }
+</style>

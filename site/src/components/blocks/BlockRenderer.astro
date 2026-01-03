@@ -1,0 +1,68 @@
+---
+import HeroBanner from './HeroBanner.astro';
+import TextBlock from './TextBlock.astro';
+import MediaText from './MediaText.astro';
+import Features from './Features.astro';
+import Gallery from './Gallery.astro';
+import CTA from './CTA.astro';
+import FAQ from './FAQ.astro';
+import Testimonials from './Testimonials.astro';
+import Stats from './Stats.astro';
+import Team from './Team.astro';
+import ContactForm from './ContactForm.astro';
+import MapBlock from './MapBlock.astro';
+import CustomHTML from './CustomHTML.astro';
+
+export interface Props {
+  sections: any[];
+}
+
+const { sections = [] } = Astro.props;
+
+// Mapeia tipo de seção para componente
+const componentMap: Record<string, any> = {
+  hero_banner: HeroBanner,
+  text: TextBlock,
+  media_text: MediaText,
+  features: Features,
+  gallery: Gallery,
+  cta: CTA,
+  faq: FAQ,
+  testimonials: Testimonials,
+  stats: Stats,
+  team: Team,
+  contact_form: ContactForm,
+  map: MapBlock,
+  custom_html: CustomHTML,
+};
+---
+
+{sections
+  .filter((section: any) => section.is_visible !== 0)
+  .sort((a: any, b: any) => (a.position || 0) - (b.position || 0))
+  .map((section: any) => {
+    const Component = componentMap[section.section_type];
+    if (!Component) {
+      console.warn(`Unknown section type: ${section.section_type}`);
+      return null;
+    }
+    
+    // Parse content if string
+    let content = section.content;
+    try {
+      content = typeof content === 'string' ? JSON.parse(content) : content;
+    } catch {
+      content = {};
+    }
+    
+    return (
+      <Component
+        title={section.title}
+        content={content}
+        layout={section.layout || 'default'}
+        variant={section.variant || 'default'}
+        settings={section.settings}
+      />
+    );
+  })
+}

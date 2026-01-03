@@ -1,0 +1,110 @@
+---
+export interface Props {
+  title?: string;
+  content: {
+    text?: string;
+    alignment?: string;
+  };
+  layout?: string;
+  variant?: string;
+}
+
+const { title, content = {}, layout = 'default', variant = 'default' } = Astro.props;
+
+const text = content.text || '';
+const alignment = content.alignment || 'left';
+---
+
+<section class:list={['text-block', `layout-${layout}`, `variant-${variant}`, `align-${alignment}`]}>
+  <div class="container mx-auto px-4">
+    <div class="text-content">
+      {title && <h2 class="text-title">{title}</h2>}
+      <div class="prose" set:html={text} />
+    </div>
+  </div>
+</section>
+
+<style>
+  .text-block {
+    padding: 4rem 0;
+  }
+  
+  .layout-narrow .text-content {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  
+  .layout-wide .text-content {
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  
+  .align-center {
+    text-align: center;
+  }
+  
+  .align-right {
+    text-align: right;
+  }
+  
+  .text-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    color: var(--color-secondary);
+  }
+  
+  .prose {
+    font-size: 1.125rem;
+    line-height: 1.75;
+    color: #4b5563;
+  }
+  
+  .prose :global(p) {
+    margin-bottom: 1rem;
+  }
+  
+  .prose :global(h3) {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 2rem 0 1rem;
+    color: #1f2937;
+  }
+  
+  .prose :global(ul), .prose :global(ol) {
+    margin: 1rem 0;
+    padding-left: 1.5rem;
+  }
+  
+  .prose :global(li) {
+    margin-bottom: 0.5rem;
+  }
+  
+  .prose :global(a) {
+    color: var(--color-primary);
+    text-decoration: underline;
+  }
+  
+  .prose :global(strong) {
+    font-weight: 600;
+    color: #1f2937;
+  }
+  
+  /* Variants */
+  .variant-highlighted {
+    background-color: #f9fafb;
+  }
+  
+  .variant-dark {
+    background-color: var(--color-secondary);
+    color: white;
+  }
+  
+  .variant-dark .text-title {
+    color: white;
+  }
+  
+  .variant-dark .prose {
+    color: #d1d5db;
+  }
+</style>

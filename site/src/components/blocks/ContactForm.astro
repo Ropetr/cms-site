@@ -1,0 +1,299 @@
+---
+export interface Props {
+  title?: string;
+  content: {
+    subtitle?: string;
+    success_message?: string;
+    fields?: Array<{
+      name: string;
+      label: string;
+      type: string;
+      required?: boolean;
+      placeholder?: string;
+    }>;
+  };
+  layout?: string;
+  variant?: string;
+}
+
+const { title, content = {}, layout = 'default', variant = 'default' } = Astro.props;
+
+const subtitle = content.subtitle || '';
+const successMessage = content.success_message || 'Mensagem enviada com sucesso! Entraremos em contato em breve.';
+
+// Default fields if none provided
+const defaultFields = [
+  { name: 'name', label: 'Nome', type: 'text', required: true, placeholder: 'Seu nome' },
+  { name: 'email', label: 'Email', type: 'email', required: true, placeholder: 'seu@email.com' },
+  { name: 'phone', label: 'Telefone', type: 'tel', required: false, placeholder: '(00) 00000-0000' },
+  { name: 'message', label: 'Mensagem', type: 'textarea', required: true, placeholder: 'Como podemos ajudar?' },
+];
+
+const fields = content.fields?.length ? content.fields : defaultFields;
+
+const API_URL = import.meta.env.API_URL || 'https://cms-site-api.planacacabamentos.workers.dev';
+---
+
+<section id="contato" class:list={['contact-form-section', `layout-${layout}`, `variant-${variant}`]}>
+  <div class="container mx-auto px-4">
+    <div class="form-wrapper">
+      {(title || subtitle) && (
+        <div class="section-header">
+          {title && <h2 class="section-title">{title}</h2>}
+          {subtitle && <p class="section-subtitle">{subtitle}</p>}
+        </div>
+      )}
+      
+      <form id="contact-form" class="contact-form" data-api-url={API_URL}>
+        <div class="form-grid">
+          {fields.map((field: any) => (
+            <div class:list={['form-group', { 'full-width': field.type === 'textarea' }]}>
+              <label for={field.name} class="form-label">
+                {field.label}
+                {field.required && <span class="required">*</span>}
+              </label>
+              
+              {field.type === 'textarea' ? (
+                <textarea
+                  id={field.name}
+                  name={field.name}
+                  placeholder={field.placeholder}
+                  required={field.required}
+                  rows="4"
+                  class="form-input"
+                ></textarea>
+              ) : (
+                <input
+                  type={field.type}
+                  id={field.name}
+                  name={field.name}
+                  placeholder={field.placeholder}
+                  required={field.required}
+                  class="form-input"
+                />
+              )}
+            </div>
+          ))}
+        </div>
+        
+        <div class="form-footer">
+          <button type="submit" class="submit-button">
+            <span class="button-text">Enviar Mensagem</span>
+            <span class="button-loading hidden">
+              <svg class="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Enviando...
+            </span>
+          </button>
+        </div>
+        
+        <div class="form-message hidden" data-success-message={successMessage}></div>
+      </form>
+    </div>
+  </div>
+</section>
+
+<script>
+  const form = document.getElementById('contact-form') as HTMLFormElement;
+  const submitBtn = form?.querySelector('.submit-button');
+  const buttonText = submitBtn?.querySelector('.button-text');
+  const buttonLoading = submitBtn?.querySelector('.button-loading');
+  const messageDiv = form?.querySelector('.form-message') as HTMLElement;
+  const apiUrl = form?.dataset.apiUrl;
+  const successMessage = messageDiv?.dataset.successMessage;
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    // Show loading
+    buttonText?.classList.add('hidden');
+    buttonLoading?.classList.remove('hidden');
+    submitBtn?.setAttribute('disabled', 'true');
+    
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    
+    try {
+      const response = await fetch(`${apiUrl}/api/public/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      
+      if (response.ok) {
+        messageDiv.textContent = successMessage || 'Mensagem enviada!';
+        messageDiv.className = 'form-message success';
+        form.reset();
+      } else {
+        throw new Error('Erro ao enviar');
+      }
+    } catch (error) {
+      messageDiv.textContent = 'Erro ao enviar mensagem. Tente novamente.';
+      messageDiv.className = 'form-message error';
+    } finally {
+      buttonText?.classList.remove('hidden');
+      buttonLoading?.classList.add('hidden');
+      submitBtn?.removeAttribute('disabled');
+    }
+  });
+</script>
+
+<style>
+  .contact-form-section {
+    padding: 5rem 0;
+  }
+  
+  .form-wrapper {
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  
+  .section-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+  }
+  
+  .section-title {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: var(--color-secondary);
+    margin-bottom: 0.75rem;
+  }
+  
+  .section-subtitle {
+    font-size: 1.125rem;
+    color: #6b7280;
+  }
+  
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  @media (min-width: 640px) {
+    .form-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .form-group.full-width {
+      grid-column: span 2;
+    }
+  }
+  
+  .form-label {
+    display: block;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 0.5rem;
+  }
+  
+  .required {
+    color: var(--color-primary);
+  }
+  
+  .form-input {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .form-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(170, 0, 14, 0.1);
+  }
+  
+  .form-input::placeholder {
+    color: #9ca3af;
+  }
+  
+  textarea.form-input {
+    resize: vertical;
+    min-height: 120px;
+  }
+  
+  .form-footer {
+    margin-top: 2rem;
+    text-align: center;
+  }
+  
+  .submit-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem 2.5rem;
+    background-color: var(--color-primary);
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 200px;
+  }
+  
+  .submit-button:hover:not(:disabled) {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+  }
+  
+  .submit-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+  
+  .hidden {
+    display: none !important;
+  }
+  
+  .form-message {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    text-align: center;
+    font-weight: 500;
+  }
+  
+  .form-message.success {
+    background-color: #d1fae5;
+    color: #065f46;
+  }
+  
+  .form-message.error {
+    background-color: #fee2e2;
+    color: #991b1b;
+  }
+  
+  /* Variants */
+  .variant-highlighted {
+    background-color: #f9fafb;
+  }
+  
+  .variant-card .form-wrapper {
+    background: white;
+    padding: 3rem;
+    border-radius: 1rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Layout: side-by-side */
+  .layout-with-info .container {
+    max-width: 1200px;
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+</style>

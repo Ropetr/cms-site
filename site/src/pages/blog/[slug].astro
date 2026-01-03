@@ -1,0 +1,126 @@
+---
+/**
+ * Blog Post Page - Post individual
+ */
+import Base from '../../layouts/Base.astro'
+
+const { slug } = Astro.params
+const API_URL = import.meta.env.PUBLIC_API_URL || 'https://cms-site-api.planacacabamentos.workers.dev'
+
+// Fetch settings e post
+let settings: any = {}
+let post: any = null
+let related: any[] = []
+
+try {
+  const [settingsRes, postRes] = await Promise.all([
+    fetch(`${API_URL}/api/public/settings`),
+    fetch(`${API_URL}/api/public/posts/${slug}`),
+  ])
+
+  if (settingsRes.ok) settings = (await settingsRes.json()).data || {}
+  if (postRes.ok) {
+    const data = await postRes.json()
+    post = data.data || null
+    related = post?.related || []
+  }
+} catch (error) {
+  console.error('Error fetching post:', error)
+}
+
+// 404 se post não existe
+if (!post) {
+  return Astro.redirect('/404')
+}
+
+const siteName = settings.site_name || 'CMS Site'
+
+const formatDate = (date: string) => {
+  return new Date(date).toLocaleDateString('pt-BR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
+}
+---
+
+<Base
+  title={`${post.meta_title || post.title} | ${siteName}`}
+  description={post.meta_description || post.excerpt}
+>
+  <article class="py-8">
+    <div class="container mx-auto px-4">
+      <!-- Header -->
+      <header class="max-w-4xl mx-auto text-center mb-12">
+        {post.category_name && (
+          <span 
+            class="inline-block px-4 py-1 text-sm font-medium text-white rounded-full mb-4"
+            style={`background-color: ${post.category_color || '#6b7280'}`}
+          >
+            {post.category_name}
+          </span>
+        )}
+
+        <h1 class="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
+          {post.title}
+        </h1>
+
+        {post.excerpt && (
+          <p class="text-xl text-gray-600 mb-6">{post.excerpt}</p>
+        )}
+
+        <div class="flex items-center justify-center gap-4 text-gray-500">
+          {post.author_name && <span>{post.author_name}</span>}
+          <span>•</span>
+          <time datetime={post.published_at}>{formatDate(post.published_at)}</time>
+        </div>
+      </header>
+
+      {post.featured_image && (
+        <div class="max-w-5xl mx-auto mb-12">
+          <img src={post.featured_image} alt={post.title} class="w-full h-auto rounded-2xl shadow-lg" />
+        </div>
+      )}
+
+      <div class="max-w-3xl mx-auto">
+        <div class="prose prose-lg max-w-none" set:html={post.content} />
+      </div>
+
+      <!-- Related Posts -->
+      {related.length > 0 && (
+        <section class="max-w-5xl mx-auto mt-16 pt-12 border-t">
+          <h2 class="text-2xl font-bold text-gray-900 mb-8">Posts Relacionados</h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {related.map((relatedPost) => (
+              <a href={`/blog/${relatedPost.slug}`} class="group">
+                <div class="aspect-video bg-gray-100 rounded-xl overflow-hidden mb-4">
+                  {relatedPost.featured_image ? (
+                    <img src={relatedPost.featured_image} alt={relatedPost.title} class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                  ) : (
+                    <div class="w-full h-full flex items-center justify-center bg-gray-200">
+                      <span class="text-gray-400">Sem imagem</span>
+                    </div>
+                  )}
+                </div>
+                <h3 class="font-semibold text-gray-900 group-hover:text-primary-600">{relatedPost.title}</h3>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div class="max-w-3xl mx-auto mt-12 text-center">
+        <a href="/blog" class="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium">
+          ← Voltar ao Blog
+        </a>
+      </div>
+    </div>
+  </article>
+</Base>
+
+<style>
+  .prose { color: #374151; }
+  .prose h2 { color: #111827; font-weight: 700; margin-top: 2em; margin-bottom: 1em; }
+  .prose a { color: var(--color-primary-600); text-decoration: underline; }
+  .prose img { border-radius: 0.75rem; }
+</style>

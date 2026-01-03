@@ -4,6 +4,8 @@ import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import PagesPage from './pages/PagesPage'
 import PageEditorPage from './pages/PageEditorPage'
+import PostsPage from './pages/PostsPage'
+import PostEditorPage from './pages/PostEditorPage'
 import MenusPage from './pages/MenusPage'
 import MediaPage from './pages/MediaPage'
 import ContactsPage from './pages/ContactsPage'
@@ -27,6 +29,9 @@ export default function App() {
         <Route path="/pages" element={<PagesPage />} />
         <Route path="/pages/new" element={<PageEditorPage />} />
         <Route path="/pages/:id" element={<PageEditorPage />} />
+        <Route path="/posts" element={<PostsPage />} />
+        <Route path="/posts/new" element={<PostEditorPage />} />
+        <Route path="/posts/:id" element={<PostEditorPage />} />
         <Route path="/menus" element={<MenusPage />} />
         <Route path="/media" element={<MediaPage />} />
         <Route path="/contacts" element={<ContactsPage />} />

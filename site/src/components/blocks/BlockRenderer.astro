@@ -4,6 +4,9 @@ import TextBlock from './TextBlock.astro';
 import MediaText from './MediaText.astro';
 import Features from './Features.astro';
 import Gallery from './Gallery.astro';
+import Carousel from './Carousel.astro';
+import ProductGrid from './ProductGrid.astro';
+import BlogList from './BlogList.astro';
 import CTA from './CTA.astro';
 import FAQ from './FAQ.astro';
 import Testimonials from './Testimonials.astro';
@@ -26,6 +29,9 @@ const componentMap: Record<string, any> = {
   media_text: MediaText,
   features: Features,
   gallery: Gallery,
+  carousel: Carousel,
+  product_grid: ProductGrid,
+  blog_list: BlogList,
   cta: CTA,
   faq: FAQ,
   testimonials: Testimonials,
@@ -39,7 +45,7 @@ const componentMap: Record<string, any> = {
 
 {sections
   .filter((section: any) => section.is_visible !== 0)
-  .sort((a: any, b: any) => (a.position || 0) - (b.position || 0))
+  .sort((a: any, b: any) => (a.position || a.sort_order || 0) - (b.position || b.sort_order || 0))
   .map((section: any) => {
     const Component = componentMap[section.section_type];
     if (!Component) {

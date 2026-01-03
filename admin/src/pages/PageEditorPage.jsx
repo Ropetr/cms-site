@@ -2,71 +2,51 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Save,
-  ArrowLeft,
-  Plus,
-  Trash2,
-  GripVertical,
-  ChevronDown,
-  ChevronUp,
-  Settings,
-  Eye,
-  Image,
-  Type,
-  Layout,
-  Grid,
-  MessageSquare,
-  Phone,
-  HelpCircle,
-  Users,
-  Star,
-  BarChart,
-  Map,
-  Code,
-  FileText,
-  Layers,
+  Save, ArrowLeft, Plus, Trash2, ChevronDown, ChevronUp, Settings, Eye,
+  Image, Type, Layout, Grid, MessageSquare, Phone, HelpCircle, Users,
+  BarChart, Map, Code, FileText, Layers, Play, ShoppingBag, BookOpen,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { Card, CardBody, CardHeader, Button, Input, Select, Badge, Modal, Loading } from '../components/ui'
+import { Card, CardBody, CardHeader, Button, Input, Select, Modal, Loading } from '../components/ui'
 import { pagesService } from '../services/api'
+import MediaPicker, { MediaPickerMultiple } from '../components/MediaPicker'
 
-// Tipos de blocos disponíveis
 const BLOCK_TYPES = [
-  { type: 'hero_banner', label: 'Banner Principal', icon: Image, description: 'Banner com imagem de fundo e CTA' },
-  { type: 'text', label: 'Texto', icon: Type, description: 'Bloco de texto rico' },
+  { type: 'hero_banner', label: 'Banner Principal', icon: Image, description: 'Banner com imagem de fundo' },
+  { type: 'text', label: 'Texto', icon: Type, description: 'Bloco de texto' },
   { type: 'media_text', label: 'Mídia + Texto', icon: Layout, description: 'Imagem ao lado de texto' },
-  { type: 'features', label: 'Features', icon: Grid, description: 'Grid de benefícios/recursos' },
+  { type: 'features', label: 'Features', icon: Grid, description: 'Grid de benefícios' },
   { type: 'gallery', label: 'Galeria', icon: Image, description: 'Galeria de imagens' },
-  { type: 'cta', label: 'CTA', icon: Phone, description: 'Botões de ação (WhatsApp, etc)' },
+  { type: 'carousel', label: 'Carrossel', icon: Play, description: 'Slides de conteúdo' },
+  { type: 'product_grid', label: 'Produtos', icon: ShoppingBag, description: 'Vitrine de produtos' },
+  { type: 'blog_list', label: 'Blog', icon: BookOpen, description: 'Posts do blog' },
+  { type: 'cta', label: 'CTA', icon: Phone, description: 'Botões de ação' },
   { type: 'faq', label: 'FAQ', icon: HelpCircle, description: 'Perguntas frequentes' },
-  { type: 'testimonials', label: 'Depoimentos', icon: MessageSquare, description: 'Avaliações de clientes' },
+  { type: 'testimonials', label: 'Depoimentos', icon: MessageSquare, description: 'Avaliações' },
   { type: 'contact_form', label: 'Formulário', icon: FileText, description: 'Formulário de contato' },
   { type: 'stats', label: 'Estatísticas', icon: BarChart, description: 'Números e métricas' },
   { type: 'team', label: 'Equipe', icon: Users, description: 'Membros da equipe' },
   { type: 'map', label: 'Mapa', icon: Map, description: 'Google Maps' },
-  { type: 'custom_html', label: 'HTML Custom', icon: Code, description: 'Código HTML personalizado' },
+  { type: 'custom_html', label: 'HTML', icon: Code, description: 'Código HTML' },
 ]
 
-// Layouts disponíveis por tipo de bloco
 const BLOCK_LAYOUTS = {
   hero_banner: ['fullwidth', 'contained', 'split'],
   text: ['default', 'centered', 'two-columns'],
   media_text: ['media-left', 'media-right', 'stacked'],
   features: ['grid-3', 'grid-4', 'list'],
   gallery: ['grid', 'masonry', 'slider'],
-  cta: ['centered', 'inline', 'stacked'],
-  faq: ['accordion', 'list', 'two-columns'],
-  testimonials: ['slider', 'grid', 'single'],
-  contact_form: ['default', 'inline', 'split'],
-  stats: ['row', 'grid', 'cards'],
-  team: ['grid-3', 'grid-4', 'slider'],
-  map: ['fullwidth', 'contained', 'with-info'],
+  carousel: ['full-width', 'contained'],
+  product_grid: ['grid', 'list'],
+  blog_list: ['grid', 'list', 'featured'],
+  cta: ['centered', 'inline'],
+  faq: ['accordion', 'list'],
+  testimonials: ['slider', 'grid'],
+  contact_form: ['default', 'inline'],
+  stats: ['row', 'grid'],
+  team: ['grid-3', 'grid-4'],
+  map: ['fullwidth', 'contained'],
   custom_html: ['default'],
-}
-
-// Variantes disponíveis
-const BLOCK_VARIANTS = {
-  default: ['default', 'dark', 'light', 'primary'],
 }
 
 export default function PageEditorPage() {
@@ -75,469 +55,185 @@ export default function PageEditorPage() {
   const queryClient = useQueryClient()
   const isNew = !id || id === 'new'
 
-  // Estado do formulário
   const [formData, setFormData] = useState({
-    title: '',
-    slug: '',
-    page_type: 'content',
-    status: 'draft',
-    meta_title: '',
-    meta_description: '',
-    menu_id: '',
+    title: '', slug: '', page_type: 'content', status: 'draft',
+    meta_title: '', meta_description: '', menu_id: '',
   })
   const [sections, setSections] = useState([])
   const [showAddBlock, setShowAddBlock] = useState(false)
   const [editingSection, setEditingSection] = useState(null)
-  const [hasChanges, setHasChanges] = useState(false)
 
-  // Fetch página existente
   const { data: pageData, isLoading } = useQuery({
-    queryKey: ['page', id],
-    queryFn: () => pagesService.get(id),
-    enabled: !isNew,
+    queryKey: ['page', id], queryFn: () => pagesService.get(id), enabled: !isNew,
   })
 
-  // Fetch seções da página
   const { data: sectionsData } = useQuery({
-    queryKey: ['page-sections', id],
-    queryFn: () => pagesService.getSections(id),
-    enabled: !isNew,
+    queryKey: ['page-sections', id], queryFn: () => pagesService.getSections(id), enabled: !isNew,
   })
 
-  // Preencher formulário quando dados carregarem
   useEffect(() => {
     if (pageData?.data) {
-      const page = pageData.data
+      const p = pageData.data
       setFormData({
-        title: page.title || '',
-        slug: page.slug || '',
-        page_type: page.page_type || 'content',
-        status: page.status || 'draft',
-        meta_title: page.meta_title || '',
-        meta_description: page.meta_description || '',
-        menu_id: page.menu_id || '',
+        title: p.title || '', slug: p.slug || '', page_type: p.page_type || 'content',
+        status: p.status || 'draft', meta_title: p.meta_title || '',
+        meta_description: p.meta_description || '', menu_id: p.menu_id || '',
       })
     }
   }, [pageData])
 
-  useEffect(() => {
-    if (sectionsData?.data) {
-      setSections(sectionsData.data)
-    }
-  }, [sectionsData])
+  useEffect(() => { if (sectionsData?.data) setSections(sectionsData.data) }, [sectionsData])
 
-  // Mutations
   const saveMutation = useMutation({
-    mutationFn: async (data) => {
-      if (isNew) {
-        return pagesService.create(data)
-      }
-      return pagesService.update(id, data)
-    },
-    onSuccess: (response) => {
+    mutationFn: (data) => isNew ? pagesService.create(data) : pagesService.update(id, data),
+    onSuccess: (res) => {
       queryClient.invalidateQueries(['pages'])
-      toast.success(isNew ? 'Página criada com sucesso!' : 'Página salva com sucesso!')
-      setHasChanges(false)
-      if (isNew && response?.data?.id) {
-        navigate(`/pages/${response.data.id}`)
-      }
+      toast.success(isNew ? 'Página criada!' : 'Página salva!')
+      if (isNew && res?.data?.id) navigate(`/pages/${res.data.id}`)
     },
-    onError: (error) => {
-      toast.error(error.response?.data?.error || 'Erro ao salvar página')
-    },
+    onError: (e) => toast.error(e.response?.data?.error || 'Erro ao salvar'),
   })
 
   const addSectionMutation = useMutation({
     mutationFn: (data) => pagesService.addSection(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['page-sections', id])
-      toast.success('Bloco adicionado!')
-      setShowAddBlock(false)
-    },
-    onError: () => {
-      toast.error('Erro ao adicionar bloco')
-    },
+    onSuccess: () => { queryClient.invalidateQueries(['page-sections', id]); toast.success('Bloco adicionado!'); setShowAddBlock(false) },
   })
 
   const updateSectionMutation = useMutation({
     mutationFn: ({ sectionId, data }) => pagesService.updateSection(id, sectionId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['page-sections', id])
-      toast.success('Bloco atualizado!')
-      setEditingSection(null)
-    },
-    onError: () => {
-      toast.error('Erro ao atualizar bloco')
-    },
+    onSuccess: () => { queryClient.invalidateQueries(['page-sections', id]); toast.success('Bloco atualizado!'); setEditingSection(null) },
   })
 
   const deleteSectionMutation = useMutation({
     mutationFn: (sectionId) => pagesService.deleteSection(id, sectionId),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['page-sections', id])
-      toast.success('Bloco removido!')
-    },
-    onError: () => {
-      toast.error('Erro ao remover bloco')
-    },
+    onSuccess: () => { queryClient.invalidateQueries(['page-sections', id]); toast.success('Bloco removido!') },
   })
 
-  // Handlers
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }))
-    setHasChanges(true)
-    
-    // Auto-generate slug from title
     if (field === 'title' && isNew) {
-      const slug = value
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '')
+      const slug = value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
       setFormData(prev => ({ ...prev, slug }))
     }
   }
 
   const handleSave = () => {
-    if (!formData.title) {
-      toast.error('Título é obrigatório')
-      return
-    }
-    if (!formData.slug) {
-      toast.error('Slug é obrigatório')
-      return
-    }
+    if (!formData.title || !formData.slug) { toast.error('Título e slug são obrigatórios'); return }
     saveMutation.mutate(formData)
   }
 
-  const handleAddBlock = (blockType) => {
-    if (isNew) {
-      toast.error('Salve a página primeiro antes de adicionar blocos')
-      return
-    }
-    
-    const newSection = {
-      section_type: blockType.type,
-      title: blockType.label,
-      content: JSON.stringify(getDefaultContent(blockType.type)),
-      layout: BLOCK_LAYOUTS[blockType.type]?.[0] || 'default',
-      variant: 'default',
-      sort_order: sections.length,
-    }
-    
-    addSectionMutation.mutate(newSection)
+  const handleAddBlock = (block) => {
+    if (isNew) { toast.error('Salve a página primeiro'); return }
+    addSectionMutation.mutate({
+      section_type: block.type, title: block.label,
+      content: JSON.stringify(getDefaultContent(block.type)),
+      layout: BLOCK_LAYOUTS[block.type]?.[0] || 'default', variant: 'default', sort_order: sections.length,
+    })
   }
 
-  const handleMoveSection = (index, direction) => {
-    const newSections = [...sections]
-    const newIndex = direction === 'up' ? index - 1 : index + 1
-    
-    if (newIndex < 0 || newIndex >= sections.length) return
-    
-    [newSections[index], newSections[newIndex]] = [newSections[newIndex], newSections[index]]
+  const handleMoveSection = (index, dir) => {
+    const newIdx = dir === 'up' ? index - 1 : index + 1
+    if (newIdx < 0 || newIdx >= sections.length) return
+    const newSections = [...sections];
+    [newSections[index], newSections[newIdx]] = [newSections[newIdx], newSections[index]]
     setSections(newSections)
-    
-    // Atualizar ordem no backend
-    const sectionIds = newSections.map(s => s.id)
-    pagesService.reorderSections(id, sectionIds)
+    pagesService.reorderSections(id, newSections.map(s => s.id))
   }
 
-  const handleDeleteSection = (sectionId) => {
-    if (confirm('Tem certeza que deseja remover este bloco?')) {
-      deleteSectionMutation.mutate(sectionId)
-    }
-  }
+  const getDefaultContent = (type) => ({
+    hero_banner: { title: 'Título', subtitle: '', cta_text: 'Saiba Mais', cta_url: '#', background_image: '' },
+    text: { title: '', content: '<p>Texto aqui...</p>', alignment: 'left' },
+    media_text: { title: '', content: '', image: '', image_alt: '' },
+    features: { title: 'Diferenciais', items: [{ icon: '⭐', title: 'Feature', description: '' }] },
+    gallery: { title: 'Galeria', images: [] },
+    carousel: { title: '', items: [{ image: '', title: '' }], autoplay: true, interval: 5000 },
+    product_grid: { title: 'Produtos', products: [] },
+    blog_list: { title: 'Blog', source: 'latest', postsCount: 3 },
+    cta: { title: 'Contato', description: '', cta_text: 'Fale Conosco', cta_url: '#', whatsapp: '' },
+    faq: { title: 'FAQ', items: [{ question: '', answer: '' }] },
+    testimonials: { title: 'Depoimentos', items: [] },
+    contact_form: { title: 'Fale Conosco', description: '', button_text: 'Enviar' },
+    stats: { title: '', items: [{ value: '100+', label: 'Clientes' }] },
+    team: { title: 'Equipe', members: [] },
+    map: { title: '', address: '', embed_url: '' },
+    custom_html: { html: '' },
+  }[type] || {})
 
-  // Conteúdo padrão para cada tipo de bloco
-  const getDefaultContent = (type) => {
-    const defaults = {
-      hero_banner: {
-        title: 'Título do Banner',
-        subtitle: 'Subtítulo ou descrição',
-        cta_text: 'Saiba Mais',
-        cta_url: '#',
-        image_url: '',
-      },
-      text: {
-        content: '<p>Digite seu texto aqui...</p>',
-      },
-      media_text: {
-        title: 'Título',
-        content: '<p>Descrição do conteúdo...</p>',
-        image_url: '',
-        image_alt: '',
-      },
-      features: {
-        title: 'Nossos Diferenciais',
-        items: [
-          { icon: 'star', title: 'Feature 1', description: 'Descrição da feature' },
-          { icon: 'star', title: 'Feature 2', description: 'Descrição da feature' },
-          { icon: 'star', title: 'Feature 3', description: 'Descrição da feature' },
-        ],
-      },
-      cta: {
-        title: 'Entre em Contato',
-        subtitle: 'Estamos prontos para atender você',
-        buttons: [
-          { type: 'whatsapp', label: 'WhatsApp', value: '5544999999999' },
-          { type: 'phone', label: 'Ligar', value: '5544999999999' },
-        ],
-      },
-      faq: {
-        title: 'Perguntas Frequentes',
-        items: [
-          { question: 'Pergunta 1?', answer: 'Resposta 1' },
-          { question: 'Pergunta 2?', answer: 'Resposta 2' },
-        ],
-      },
-      testimonials: {
-        title: 'O que nossos clientes dizem',
-        items: [
-          { name: 'Cliente 1', role: 'Empresa', content: 'Depoimento...', rating: 5 },
-        ],
-      },
-      contact_form: {
-        title: 'Fale Conosco',
-        subtitle: 'Preencha o formulário abaixo',
-        fields: ['name', 'email', 'phone', 'message'],
-      },
-      stats: {
-        items: [
-          { value: '100+', label: 'Clientes' },
-          { value: '500+', label: 'Projetos' },
-          { value: '10+', label: 'Anos' },
-        ],
-      },
-      gallery: {
-        title: 'Galeria',
-        images: [],
-      },
-      team: {
-        title: 'Nossa Equipe',
-        members: [],
-      },
-      map: {
-        address: 'Endereço completo',
-        lat: -23.4273,
-        lng: -51.9375,
-        zoom: 15,
-      },
-      custom_html: {
-        html: '<!-- Seu código HTML aqui -->',
-      },
-    }
-    return defaults[type] || {}
-  }
+  const getBlockIcon = (type) => BLOCK_TYPES.find(b => b.type === type)?.icon || Layers
 
-  const getBlockIcon = (type) => {
-    const block = BLOCK_TYPES.find(b => b.type === type)
-    return block?.icon || Layers
-  }
-
-  if (!isNew && isLoading) {
-    return <Loading fullScreen text="Carregando página..." />
-  }
+  if (!isNew && isLoading) return <Loading fullScreen text="Carregando..." />
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/pages')}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
+          <Button variant="ghost" onClick={() => navigate('/pages')}><ArrowLeft className="w-4 h-4" /></Button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {isNew ? 'Nova Página' : 'Editar Página'}
-            </h1>
-            <p className="text-gray-500">
-              {isNew ? 'Crie uma nova página' : formData.title}
-            </p>
+            <h1 className="text-2xl font-bold">{isNew ? 'Nova Página' : 'Editar Página'}</h1>
+            <p className="text-gray-500">{isNew ? 'Crie uma nova página' : formData.title}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {!isNew && (
-            <Button variant="outline" onClick={() => window.open(`/preview/${formData.slug}`, '_blank')}>
-              <Eye className="w-4 h-4" />
-              Preview
-            </Button>
-          )}
-          <Button onClick={handleSave} loading={saveMutation.isPending}>
-            <Save className="w-4 h-4" />
-            {isNew ? 'Criar Página' : 'Salvar'}
-          </Button>
+          {!isNew && <Button variant="outline" onClick={() => window.open(`/preview/${formData.slug}`, '_blank')}><Eye className="w-4 h-4" />Preview</Button>}
+          <Button onClick={handleSave} loading={saveMutation.isPending}><Save className="w-4 h-4" />{isNew ? 'Criar' : 'Salvar'}</Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Configurações da Página */}
-        <div className="lg:col-span-1 space-y-6">
+        <div className="space-y-6">
           <Card>
-            <CardHeader>
-              <h2 className="font-semibold text-gray-900">Configurações</h2>
-            </CardHeader>
+            <CardHeader><h2 className="font-semibold">Configurações</h2></CardHeader>
             <CardBody className="space-y-4">
-              <Input
-                label="Título"
-                value={formData.title}
-                onChange={(e) => handleInputChange('title', e.target.value)}
-                placeholder="Título da página"
-                required
-              />
-              
-              <Input
-                label="Slug (URL)"
-                value={formData.slug}
-                onChange={(e) => handleInputChange('slug', e.target.value)}
-                placeholder="url-da-pagina"
-                helper={`URL: /${formData.slug || 'slug'}`}
-                required
-              />
-              
-              <Select
-                label="Tipo"
-                value={formData.page_type}
-                onChange={(e) => handleInputChange('page_type', e.target.value)}
-                options={[
-                  { value: 'home', label: 'Home' },
-                  { value: 'content', label: 'Conteúdo' },
-                  { value: 'product', label: 'Produto' },
-                  { value: 'contact', label: 'Contato' },
-                  { value: 'blog', label: 'Blog' },
-                  { value: 'custom', label: 'Personalizado' },
-                ]}
-              />
-              
-              <Select
-                label="Status"
-                value={formData.status}
-                onChange={(e) => handleInputChange('status', e.target.value)}
-                options={[
-                  { value: 'draft', label: 'Rascunho' },
-                  { value: 'published', label: 'Publicado' },
-                  { value: 'archived', label: 'Arquivado' },
-                ]}
-              />
+              <Input label="Título" value={formData.title} onChange={(e) => handleInputChange('title', e.target.value)} required />
+              <Input label="Slug" value={formData.slug} onChange={(e) => handleInputChange('slug', e.target.value)} helper={`/${formData.slug}`} required />
+              <Select label="Tipo" value={formData.page_type} onChange={(e) => handleInputChange('page_type', e.target.value)}
+                options={[{ value: 'home', label: 'Home' }, { value: 'content', label: 'Conteúdo' }, { value: 'landing', label: 'Landing' }]} />
+              <Select label="Status" value={formData.status} onChange={(e) => handleInputChange('status', e.target.value)}
+                options={[{ value: 'draft', label: 'Rascunho' }, { value: 'published', label: 'Publicado' }]} />
             </CardBody>
           </Card>
-
-          {/* SEO */}
           <Card>
-            <CardHeader>
-              <h2 className="font-semibold text-gray-900">SEO</h2>
-            </CardHeader>
+            <CardHeader><h2 className="font-semibold">SEO</h2></CardHeader>
             <CardBody className="space-y-4">
-              <Input
-                label="Meta Title"
-                value={formData.meta_title}
-                onChange={(e) => handleInputChange('meta_title', e.target.value)}
-                placeholder="Título para SEO"
-                helper={`${formData.meta_title?.length || 0}/60 caracteres`}
-              />
-              
+              <Input label="Meta Title" value={formData.meta_title} onChange={(e) => handleInputChange('meta_title', e.target.value)} />
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Meta Description
-                </label>
-                <textarea
-                  value={formData.meta_description}
-                  onChange={(e) => handleInputChange('meta_description', e.target.value)}
-                  placeholder="Descrição para SEO"
-                  rows={3}
-                  className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-                <p className="mt-1 text-sm text-gray-500">
-                  {formData.meta_description?.length || 0}/160 caracteres
-                </p>
+                <label className="block text-sm font-medium mb-1">Meta Description</label>
+                <textarea value={formData.meta_description} onChange={(e) => handleInputChange('meta_description', e.target.value)}
+                  rows={3} className="w-full px-3 py-2 border rounded-lg text-sm" />
               </div>
             </CardBody>
           </Card>
         </div>
 
-        {/* Blocos/Seções */}
         <div className="lg:col-span-2">
           <Card>
             <CardHeader className="flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900">Blocos da Página</h2>
-              <Button 
-                size="sm" 
-                onClick={() => setShowAddBlock(true)}
-                disabled={isNew}
-              >
-                <Plus className="w-4 h-4" />
-                Adicionar Bloco
-              </Button>
+              <h2 className="font-semibold">Blocos</h2>
+              <Button size="sm" onClick={() => setShowAddBlock(true)} disabled={isNew}><Plus className="w-4 h-4" />Adicionar</Button>
             </CardHeader>
             <CardBody className="p-0">
               {isNew ? (
-                <div className="p-8 text-center text-gray-500">
-                  <Layers className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  <p>Salve a página primeiro para adicionar blocos</p>
-                </div>
+                <div className="p-8 text-center text-gray-500"><Layers className="w-12 h-12 mx-auto mb-4 text-gray-300" /><p>Salve primeiro</p></div>
               ) : sections.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  <Layers className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  <p className="mb-4">Nenhum bloco adicionado</p>
-                  <Button onClick={() => setShowAddBlock(true)}>
-                    <Plus className="w-4 h-4" />
-                    Adicionar Primeiro Bloco
-                  </Button>
-                </div>
+                <div className="p-8 text-center text-gray-500"><Layers className="w-12 h-12 mx-auto mb-4 text-gray-300" /><p className="mb-4">Sem blocos</p>
+                  <Button onClick={() => setShowAddBlock(true)}><Plus className="w-4 h-4" />Adicionar</Button></div>
               ) : (
-                <div className="divide-y divide-gray-100">
-                  {sections.map((section, index) => {
-                    const IconComponent = getBlockIcon(section.section_type)
+                <div className="divide-y">
+                  {sections.map((s, i) => {
+                    const Icon = getBlockIcon(s.section_type)
                     return (
-                      <div
-                        key={section.id}
-                        className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50"
-                      >
+                      <div key={s.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50">
                         <div className="flex flex-col gap-1">
-                          <button
-                            onClick={() => handleMoveSection(index, 'up')}
-                            disabled={index === 0}
-                            className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
-                          >
-                            <ChevronUp className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleMoveSection(index, 'down')}
-                            disabled={index === sections.length - 1}
-                            className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
-                          >
-                            <ChevronDown className="w-4 h-4" />
-                          </button>
+                          <button onClick={() => handleMoveSection(i, 'up')} disabled={i === 0} className="p-1 text-gray-400 disabled:opacity-30"><ChevronUp className="w-4 h-4" /></button>
+                          <button onClick={() => handleMoveSection(i, 'down')} disabled={i === sections.length - 1} className="p-1 text-gray-400 disabled:opacity-30"><ChevronDown className="w-4 h-4" /></button>
                         </div>
-                        
-                        <div className="p-2 bg-gray-100 rounded-lg">
-                          <IconComponent className="w-5 h-5 text-gray-600" />
-                        </div>
-                        
+                        <div className="p-2 bg-gray-100 rounded-lg"><Icon className="w-5 h-5 text-gray-600" /></div>
                         <div className="flex-1">
-                          <p className="font-medium text-gray-900">{section.title}</p>
-                          <p className="text-sm text-gray-500">
-                            {BLOCK_TYPES.find(b => b.type === section.section_type)?.label || section.section_type}
-                            {section.layout && ` • ${section.layout}`}
-                          </p>
+                          <p className="font-medium">{s.title}</p>
+                          <p className="text-sm text-gray-500">{BLOCK_TYPES.find(b => b.type === s.section_type)?.label} • {s.layout}</p>
                         </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setEditingSection(section)}
-                          >
-                            <Settings className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteSection(section.id)}
-                          >
-                            <Trash2 className="w-4 h-4 text-red-500" />
-                          </Button>
-                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => setEditingSection(s)}><Settings className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => confirm('Remover?') && deleteSectionMutation.mutate(s.id)}><Trash2 className="w-4 h-4 text-red-500" /></Button>
                       </div>
                     )
                   })}
@@ -548,247 +244,246 @@ export default function PageEditorPage() {
         </div>
       </div>
 
-      {/* Modal Adicionar Bloco */}
-      <Modal
-        isOpen={showAddBlock}
-        onClose={() => setShowAddBlock(false)}
-        title="Adicionar Bloco"
-        size="lg"
-      >
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {BLOCK_TYPES.map((block) => {
-            const IconComponent = block.icon
-            return (
-              <button
-                key={block.type}
-                onClick={() => handleAddBlock(block)}
-                className="flex flex-col items-center gap-2 p-4 border border-gray-200 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors text-center"
-              >
-                <IconComponent className="w-8 h-8 text-primary-500" />
-                <span className="font-medium text-gray-900">{block.label}</span>
-                <span className="text-xs text-gray-500">{block.description}</span>
-              </button>
-            )
+      <Modal isOpen={showAddBlock} onClose={() => setShowAddBlock(false)} title="Adicionar Bloco" size="lg">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {BLOCK_TYPES.map((b) => {
+            const Icon = b.icon
+            return (<button key={b.type} onClick={() => handleAddBlock(b)} className="flex flex-col items-center gap-2 p-3 border rounded-lg hover:border-primary-500 hover:bg-primary-50">
+              <Icon className="w-6 h-6 text-primary-500" /><span className="text-sm font-medium">{b.label}</span></button>)
           })}
         </div>
       </Modal>
 
-      {/* Modal Editar Bloco */}
-      <Modal
-        isOpen={!!editingSection}
-        onClose={() => setEditingSection(null)}
-        title={`Editar ${editingSection?.title || 'Bloco'}`}
-        size="lg"
-      >
-        {editingSection && (
-          <SectionEditor
-            section={editingSection}
-            onSave={(data) => {
-              updateSectionMutation.mutate({
-                sectionId: editingSection.id,
-                data,
-              })
-            }}
-            onCancel={() => setEditingSection(null)}
-            loading={updateSectionMutation.isPending}
-          />
-        )}
+      <Modal isOpen={!!editingSection} onClose={() => setEditingSection(null)} title={`Editar ${editingSection?.title}`} size="xl">
+        {editingSection && <SectionEditor section={editingSection} onSave={(data) => updateSectionMutation.mutate({ sectionId: editingSection.id, data })}
+          onCancel={() => setEditingSection(null)} loading={updateSectionMutation.isPending} />}
       </Modal>
     </div>
   )
 }
 
-// Componente para editar seção
 function SectionEditor({ section, onSave, onCancel, loading }) {
   const [title, setTitle] = useState(section.title || '')
   const [layout, setLayout] = useState(section.layout || 'default')
   const [variant, setVariant] = useState(section.variant || 'default')
   const [content, setContent] = useState(() => {
-    try {
-      return typeof section.content === 'string' 
-        ? JSON.parse(section.content) 
-        : section.content || {}
-    } catch {
-      return {}
-    }
+    try { return typeof section.content === 'string' ? JSON.parse(section.content) : section.content || {} }
+    catch { return {} }
   })
 
   const layouts = BLOCK_LAYOUTS[section.section_type] || ['default']
-
-  const handleSave = () => {
-    onSave({
-      title,
-      layout,
-      variant,
-      content: JSON.stringify(content),
-    })
-  }
-
-  const updateContent = (key, value) => {
-    setContent(prev => ({ ...prev, [key]: value }))
-  }
+  const updateContent = (k, v) => setContent(prev => ({ ...prev, [k]: v }))
 
   return (
-    <div className="space-y-4">
-      <Input
-        label="Título do Bloco"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-      />
-      
-      <Select
-        label="Layout"
-        value={layout}
-        onChange={(e) => setLayout(e.target.value)}
-        options={layouts.map(l => ({ value: l, label: l }))}
-      />
-      
-      <Select
-        label="Variante"
-        value={variant}
-        onChange={(e) => setVariant(e.target.value)}
-        options={[
-          { value: 'default', label: 'Padrão' },
-          { value: 'dark', label: 'Escuro' },
-          { value: 'light', label: 'Claro' },
-          { value: 'primary', label: 'Cor Principal' },
-        ]}
-      />
-
-      {/* Editor de conteúdo específico por tipo */}
-      <div className="border-t pt-4">
-        <h3 className="font-medium text-gray-900 mb-3">Conteúdo</h3>
-        <ContentEditor
-          type={section.section_type}
-          content={content}
-          onChange={updateContent}
-        />
+    <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+      <Input label="Título" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <div className="grid grid-cols-2 gap-4">
+        <Select label="Layout" value={layout} onChange={(e) => setLayout(e.target.value)} options={layouts.map(l => ({ value: l, label: l }))} />
+        <Select label="Variante" value={variant} onChange={(e) => setVariant(e.target.value)}
+          options={[{ value: 'default', label: 'Padrão' }, { value: 'dark', label: 'Escuro' }, { value: 'light', label: 'Claro' }, { value: 'primary', label: 'Primary' }]} />
       </div>
-
+      <div className="border-t pt-4">
+        <ContentEditor type={section.section_type} content={content} onChange={updateContent} />
+      </div>
       <div className="flex justify-end gap-3 pt-4 border-t">
-        <Button variant="outline" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button onClick={handleSave} loading={loading}>
-          Salvar Bloco
-        </Button>
+        <Button variant="outline" onClick={onCancel}>Cancelar</Button>
+        <Button onClick={() => onSave({ title, layout, variant, content: JSON.stringify(content) })} loading={loading}>Salvar</Button>
       </div>
     </div>
   )
 }
 
-// Editor de conteúdo por tipo de bloco
 function ContentEditor({ type, content, onChange }) {
-  switch (type) {
-    case 'hero_banner':
-      return (
-        <div className="space-y-3">
-          <Input
-            label="Título"
-            value={content.title || ''}
-            onChange={(e) => onChange('title', e.target.value)}
-          />
-          <Input
-            label="Subtítulo"
-            value={content.subtitle || ''}
-            onChange={(e) => onChange('subtitle', e.target.value)}
-          />
-          <Input
-            label="Texto do Botão"
-            value={content.cta_text || ''}
-            onChange={(e) => onChange('cta_text', e.target.value)}
-          />
-          <Input
-            label="URL do Botão"
-            value={content.cta_url || ''}
-            onChange={(e) => onChange('cta_url', e.target.value)}
-          />
-          <Input
-            label="URL da Imagem"
-            value={content.image_url || ''}
-            onChange={(e) => onChange('image_url', e.target.value)}
-            helper="Cole a URL da imagem ou use a biblioteca de mídia"
-          />
+  const editors = {
+    hero_banner: () => (
+      <div className="space-y-3">
+        <Input label="Título" value={content.title || ''} onChange={(e) => onChange('title', e.target.value)} />
+        <Input label="Subtítulo" value={content.subtitle || ''} onChange={(e) => onChange('subtitle', e.target.value)} />
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Botão" value={content.cta_text || ''} onChange={(e) => onChange('cta_text', e.target.value)} />
+          <Input label="URL" value={content.cta_url || ''} onChange={(e) => onChange('cta_url', e.target.value)} />
         </div>
-      )
-
-    case 'text':
-      return (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Conteúdo
-          </label>
-          <textarea
-            value={content.content || ''}
-            onChange={(e) => onChange('content', e.target.value)}
-            rows={6}
-            className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-            placeholder="Digite o texto... (suporta HTML)"
-          />
+        <div><label className="block text-sm font-medium mb-2">Imagem de Fundo</label>
+          <MediaPicker value={content.background_image} onChange={(m) => onChange('background_image', m?.url || '')} aspectRatio="16/9" /></div>
+      </div>
+    ),
+    text: () => (
+      <div className="space-y-3">
+        <Input label="Título" value={content.title || ''} onChange={(e) => onChange('title', e.target.value)} />
+        <div><label className="block text-sm font-medium mb-1">Conteúdo</label>
+          <textarea value={content.content || ''} onChange={(e) => onChange('content', e.target.value)} rows={6} className="w-full px-3 py-2 border rounded-lg font-mono text-sm" /></div>
+      </div>
+    ),
+    media_text: () => (
+      <div className="space-y-3">
+        <Input label="Título" value={content.title || ''} onChange={(e) => onChange('title', e.target.value)} />
+        <div><label className="block text-sm font-medium mb-1">Conteúdo</label>
+          <textarea value={content.content || ''} onChange={(e) => onChange('content', e.target.value)} rows={3} className="w-full px-3 py-2 border rounded-lg" /></div>
+        <div><label className="block text-sm font-medium mb-2">Imagem</label>
+          <MediaPicker value={content.image} onChange={(m) => { onChange('image', m?.url || ''); if (m?.alt_text) onChange('image_alt', m.alt_text) }} aspectRatio="4/3" /></div>
+        <Input label="Alt" value={content.image_alt || ''} onChange={(e) => onChange('image_alt', e.target.value)} />
+      </div>
+    ),
+    gallery: () => (
+      <div className="space-y-3">
+        <Input label="Título" value={content.title || ''} onChange={(e) => onChange('title', e.target.value)} />
+        <div><label className="block text-sm font-medium mb-2">Imagens</label>
+          <MediaPickerMultiple value={content.images || []} onChange={(imgs) => onChange('images', imgs)} maxItems={12} /></div>
+      </div>
+    ),
+    cta: () => (
+      <div className="space-y-3">
+        <Input label="Título" value={content.title || ''} onChange={(e) => onChange('title', e.target.value)} />
+        <Input label="Descrição" value={content.description || ''} onChange={(e) => onChange('description', e.target.value)} />
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Botão" value={content.cta_text || ''} onChange={(e) => onChange('cta_text', e.target.value)} />
+          <Input label="URL" value={content.cta_url || ''} onChange={(e) => onChange('cta_url', e.target.value)} />
         </div>
-      )
-
-    case 'media_text':
-      return (
-        <div className="space-y-3">
-          <Input
-            label="Título"
-            value={content.title || ''}
-            onChange={(e) => onChange('title', e.target.value)}
-          />
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Conteúdo
-            </label>
-            <textarea
-              value={content.content || ''}
-              onChange={(e) => onChange('content', e.target.value)}
-              rows={4}
-              className="block w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
-          <Input
-            label="URL da Imagem"
-            value={content.image_url || ''}
-            onChange={(e) => onChange('image_url', e.target.value)}
-          />
-          <Input
-            label="Alt da Imagem"
-            value={content.image_alt || ''}
-            onChange={(e) => onChange('image_alt', e.target.value)}
-          />
-        </div>
-      )
-
-    case 'cta':
-      return (
-        <div className="space-y-3">
-          <Input
-            label="Título"
-            value={content.title || ''}
-            onChange={(e) => onChange('title', e.target.value)}
-          />
-          <Input
-            label="Subtítulo"
-            value={content.subtitle || ''}
-            onChange={(e) => onChange('subtitle', e.target.value)}
-          />
-          <p className="text-sm text-gray-500">
-            Botões configuráveis em breve...
-          </p>
-        </div>
-      )
-
-    default:
-      return (
-        <div className="p-4 bg-gray-50 rounded-lg">
-          <p className="text-sm text-gray-500">
-            Editor avançado para "{type}" em desenvolvimento.
-          </p>
-          <pre className="mt-2 text-xs text-gray-400 overflow-auto">
-            {JSON.stringify(content, null, 2)}
-          </pre>
-        </div>
-      )
+        <Input label="WhatsApp" value={content.whatsapp || ''} onChange={(e) => onChange('whatsapp', e.target.value)} placeholder="5511999999999" />
+      </div>
+    ),
+    contact_form: () => (
+      <div className="space-y-3">
+        <Input label="Título" value={content.title || ''} onChange={(e) => onChange('title', e.target.value)} />
+        <Input label="Descrição" value={content.description || ''} onChange={(e) => onChange('description', e.target.value)} />
+        <Input label="Botão" value={content.button_text || ''} onChange={(e) => onChange('button_text', e.target.value)} />
+      </div>
+    ),
+    map: () => (
+      <div className="space-y-3">
+        <Input label="Endereço" value={content.address || ''} onChange={(e) => onChange('address', e.target.value)} />
+        <div><label className="block text-sm font-medium mb-1">URL Embed</label>
+          <textarea value={content.embed_url || ''} onChange={(e) => onChange('embed_url', e.target.value)} rows={2} className="w-full px-3 py-2 border rounded-lg font-mono text-xs" /></div>
+      </div>
+    ),
+    custom_html: () => (
+      <div><label className="block text-sm font-medium mb-1">HTML</label>
+        <textarea value={content.html || ''} onChange={(e) => onChange('html', e.target.value)} rows={10} className="w-full px-3 py-2 border rounded-lg font-mono text-sm" /></div>
+    ),
+    features: () => <ArrayEditor items={content.items || []} onChange={(items) => onChange('items', items)} fields={['icon', 'title', 'description']} title="Feature" />,
+    faq: () => <ArrayEditor items={content.items || []} onChange={(items) => onChange('items', items)} fields={['question', 'answer']} title="Pergunta" />,
+    stats: () => <ArrayEditor items={content.items || []} onChange={(items) => onChange('items', items)} fields={['value', 'label']} title="Stat" />,
+    testimonials: () => <TestimonialsEditor items={content.items || []} onChange={(items) => onChange('items', items)} />,
+    team: () => <TeamEditor members={content.members || []} onChange={(members) => onChange('members', members)} />,
+    carousel: () => <CarouselEditor items={content.items || []} onChange={(items) => onChange('items', items)} />,
+    product_grid: () => <ProductsEditor products={content.products || []} onChange={(products) => onChange('products', products)} />,
+    blog_list: () => (
+      <div className="space-y-3">
+        <Input label="Título" value={content.title || ''} onChange={(e) => onChange('title', e.target.value)} />
+        <Input label="Qtd Posts" type="number" value={content.postsCount || 3} onChange={(e) => onChange('postsCount', parseInt(e.target.value))} />
+      </div>
+    ),
   }
+  return editors[type]?.() || <pre className="text-xs bg-gray-50 p-3 rounded">{JSON.stringify(content, null, 2)}</pre>
+}
+
+function ArrayEditor({ items, onChange, fields, title }) {
+  const add = () => onChange([...items, fields.reduce((o, f) => ({ ...o, [f]: '' }), {})])
+  const update = (i, f, v) => { const n = [...items]; n[i] = { ...n[i], [f]: v }; onChange(n) }
+  const remove = (i) => onChange(items.filter((_, idx) => idx !== i))
+  return (
+    <div className="space-y-3">
+      {items.map((item, i) => (
+        <div key={i} className="p-3 border rounded-lg space-y-2">
+          <div className="flex justify-between"><span className="text-sm font-medium">{title} {i + 1}</span>
+            <button onClick={() => remove(i)} className="text-red-500"><Trash2 className="w-4 h-4" /></button></div>
+          {fields.map(f => f === 'answer' || f === 'description' ? (
+            <textarea key={f} placeholder={f} value={item[f] || ''} onChange={(e) => update(i, f, e.target.value)} rows={2} className="w-full px-3 py-2 border rounded text-sm" />
+          ) : (
+            <Input key={f} placeholder={f} value={item[f] || ''} onChange={(e) => update(i, f, e.target.value)} />
+          ))}
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={add}><Plus className="w-4 h-4" />Adicionar</Button>
+    </div>
+  )
+}
+
+function TestimonialsEditor({ items, onChange }) {
+  const add = () => onChange([...items, { name: '', role: '', text: '', rating: 5, avatar: '' }])
+  const update = (i, f, v) => { const n = [...items]; n[i] = { ...n[i], [f]: v }; onChange(n) }
+  const remove = (i) => onChange(items.filter((_, idx) => idx !== i))
+  return (
+    <div className="space-y-3">
+      {items.map((item, i) => (
+        <div key={i} className="p-3 border rounded-lg space-y-2">
+          <div className="flex justify-between"><span className="text-sm font-medium">Depoimento {i + 1}</span>
+            <button onClick={() => remove(i)} className="text-red-500"><Trash2 className="w-4 h-4" /></button></div>
+          <div className="grid grid-cols-2 gap-2">
+            <Input placeholder="Nome" value={item.name || ''} onChange={(e) => update(i, 'name', e.target.value)} />
+            <Input placeholder="Cargo" value={item.role || ''} onChange={(e) => update(i, 'role', e.target.value)} />
+          </div>
+          <textarea placeholder="Depoimento" value={item.text || ''} onChange={(e) => update(i, 'text', e.target.value)} rows={2} className="w-full px-3 py-2 border rounded text-sm" />
+          <div className="grid grid-cols-2 gap-2">
+            <Input type="number" placeholder="Nota" value={item.rating || 5} onChange={(e) => update(i, 'rating', parseInt(e.target.value))} min={1} max={5} />
+            <MediaPicker value={item.avatar} onChange={(m) => update(i, 'avatar', m?.url || '')} aspectRatio="1/1" />
+          </div>
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={add}><Plus className="w-4 h-4" />Adicionar</Button>
+    </div>
+  )
+}
+
+function TeamEditor({ members, onChange }) {
+  const add = () => onChange([...members, { name: '', role: '', photo: '', bio: '' }])
+  const update = (i, f, v) => { const n = [...members]; n[i] = { ...n[i], [f]: v }; onChange(n) }
+  const remove = (i) => onChange(members.filter((_, idx) => idx !== i))
+  return (
+    <div className="space-y-3">
+      {members.map((m, i) => (
+        <div key={i} className="p-3 border rounded-lg space-y-2">
+          <div className="flex justify-between"><span className="text-sm font-medium">Membro {i + 1}</span>
+            <button onClick={() => remove(i)} className="text-red-500"><Trash2 className="w-4 h-4" /></button></div>
+          <div className="grid grid-cols-2 gap-2">
+            <Input placeholder="Nome" value={m.name || ''} onChange={(e) => update(i, 'name', e.target.value)} />
+            <Input placeholder="Cargo" value={m.role || ''} onChange={(e) => update(i, 'role', e.target.value)} />
+          </div>
+          <MediaPicker value={m.photo} onChange={(media) => update(i, 'photo', media?.url || '')} aspectRatio="1/1" />
+          <Input placeholder="Bio" value={m.bio || ''} onChange={(e) => update(i, 'bio', e.target.value)} />
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={add}><Plus className="w-4 h-4" />Adicionar</Button>
+    </div>
+  )
+}
+
+function CarouselEditor({ items, onChange }) {
+  const add = () => onChange([...items, { image: '', title: '', description: '' }])
+  const update = (i, f, v) => { const n = [...items]; n[i] = { ...n[i], [f]: v }; onChange(n) }
+  const remove = (i) => onChange(items.filter((_, idx) => idx !== i))
+  return (
+    <div className="space-y-3">
+      {items.map((item, i) => (
+        <div key={i} className="p-3 border rounded-lg space-y-2">
+          <div className="flex justify-between"><span className="text-sm font-medium">Slide {i + 1}</span>
+            <button onClick={() => remove(i)} className="text-red-500"><Trash2 className="w-4 h-4" /></button></div>
+          <MediaPicker value={item.image} onChange={(m) => update(i, 'image', m?.url || '')} aspectRatio="16/9" />
+          <Input placeholder="Título" value={item.title || ''} onChange={(e) => update(i, 'title', e.target.value)} />
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={add}><Plus className="w-4 h-4" />Adicionar</Button>
+    </div>
+  )
+}
+
+function ProductsEditor({ products, onChange }) {
+  const add = () => onChange([...products, { image: '', name: '', description: '', category: '' }])
+  const update = (i, f, v) => { const n = [...products]; n[i] = { ...n[i], [f]: v }; onChange(n) }
+  const remove = (i) => onChange(products.filter((_, idx) => idx !== i))
+  return (
+    <div className="space-y-3">
+      {products.map((p, i) => (
+        <div key={i} className="p-3 border rounded-lg space-y-2">
+          <div className="flex justify-between"><span className="text-sm font-medium">Produto {i + 1}</span>
+            <button onClick={() => remove(i)} className="text-red-500"><Trash2 className="w-4 h-4" /></button></div>
+          <MediaPicker value={p.image} onChange={(m) => update(i, 'image', m?.url || '')} aspectRatio="1/1" />
+          <Input placeholder="Nome" value={p.name || ''} onChange={(e) => update(i, 'name', e.target.value)} />
+          <Input placeholder="Descrição" value={p.description || ''} onChange={(e) => update(i, 'description', e.target.value)} />
+          <Input placeholder="Categoria" value={p.category || ''} onChange={(e) => update(i, 'category', e.target.value)} />
+        </div>
+      ))}
+      <Button variant="outline" size="sm" onClick={add}><Plus className="w-4 h-4" />Adicionar</Button>
+    </div>
+  )
 }

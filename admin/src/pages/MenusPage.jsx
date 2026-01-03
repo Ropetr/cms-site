@@ -254,14 +254,29 @@ export default function MenusPage() {
     </div>
   )
 }
-
 function CreateMenuForm({ onSubmit, onCancel, loading }) {
   const [name, setName] = useState('')
   const [location, setLocation] = useState('header')
 
+  // Gerar slug automaticamente a partir do nome
+  const generateSlug = (text) => {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '')
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    const slug = generateSlug(name)
+    onSubmit({ name, slug, location, items: '[]' })
+  }
+
   return (
-    <form onSubmit={(e) => { e.preventDefault(); onSubmit({ name, location, items: '[]' }) }} className="space-y-4">
-      <Input label="Nome" value={name} onChange={(e) => setName(e.target.value)} required />
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <Input label="Nome" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Ex: Menu Principal" />
       <Select label="Localização" value={location} onChange={(e) => setLocation(e.target.value)}
         options={[
           { value: 'header', label: 'Header' },

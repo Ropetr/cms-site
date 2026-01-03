@@ -1,0 +1,198 @@
+---
+/**
+ * BlogList Block - Lista de posts do blog
+ * 
+ * Busca posts da API e renderiza como cards
+ */
+interface Props {
+  content: {
+    title?: string
+    subtitle?: string
+    source?: 'latest' | 'featured'
+    postsCount?: number
+    cta_text?: string
+    cta_url?: string
+  }
+  layout?: string
+  variant?: string
+}
+
+const { content, layout = 'grid', variant = 'default' } = Astro.props
+const { title, subtitle, source = 'latest', postsCount = 3, cta_text, cta_url } = content
+
+const variantClasses = {
+  default: 'bg-white',
+  dark: 'bg-gray-900 text-white',
+  light: 'bg-gray-50',
+  primary: 'bg-primary-50',
+}
+
+// Buscar posts da API
+const API_URL = import.meta.env.PUBLIC_API_URL || 'https://cms-site-api.planacacabamentos.workers.dev'
+let posts: any[] = []
+
+try {
+  const response = await fetch(`${API_URL}/api/public/posts?limit=${postsCount}&source=${source}`)
+  if (response.ok) {
+    const data = await response.json()
+    posts = data.data || []
+  }
+} catch (error) {
+  console.error('Error fetching posts:', error)
+}
+
+// Se não houver posts, usar placeholder
+const placeholderPosts = posts.length === 0 ? [
+  { id: '1', title: 'Em breve: Primeiro Post', excerpt: 'Estamos preparando conteúdo incrível para você. Fique ligado!', created_at: new Date().toISOString() },
+] : []
+
+const displayPosts = posts.length > 0 ? posts : placeholderPosts
+
+const gridClasses = {
+  grid: 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8',
+  list: 'space-y-8',
+  featured: 'grid grid-cols-1 lg:grid-cols-3 gap-8',
+}
+---
+
+<section class={`blog-list-block py-16 ${variantClasses[variant] || variantClasses.default}`}>
+  <div class="container mx-auto px-4">
+    {(title || subtitle) && (
+      <div class="text-center mb-12">
+        {title && <h2 class="text-3xl font-bold mb-4">{title}</h2>}
+        {subtitle && <p class={`text-lg ${variant === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{subtitle}</p>}
+      </div>
+    )}
+    
+    <div class={gridClasses[layout] || gridClasses.grid}>
+      {displayPosts.map((post, index) => (
+        <article 
+          class={`blog-card group ${
+            layout === 'featured' && index === 0 
+              ? 'lg:col-span-2 lg:row-span-2' 
+              : ''
+          }`}
+        >
+          {layout === 'list' ? (
+            <!-- List Layout -->
+            <div class="flex gap-6 items-start">
+              {post.featured_image && (
+                <div class="flex-shrink-0 w-48 h-32">
+                  <img 
+                    src={post.featured_image} 
+                    alt={post.title}
+                    class="w-full h-full object-cover rounded-lg"
+                    loading="lazy"
+                  />
+                </div>
+              )}
+              <div class="flex-1">
+                {post.category && (
+                  <span class="text-sm text-primary-500 font-medium">{post.category}</span>
+                )}
+                <h3 class="text-xl font-semibold mt-1 group-hover:text-primary-500 transition-colors">
+                  <a href={`/blog/${post.slug || post.id}`}>{post.title}</a>
+                </h3>
+                {post.excerpt && (
+                  <p class={`mt-2 ${variant === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                    {post.excerpt}
+                  </p>
+                )}
+                <div class="mt-3 flex items-center gap-4 text-sm text-gray-500">
+                  {post.author && <span>{post.author}</span>}
+                  {post.created_at && (
+                    <time datetime={post.created_at}>
+                      {new Date(post.created_at).toLocaleDateString('pt-BR', { 
+                        day: 'numeric', 
+                        month: 'short', 
+                        year: 'numeric' 
+                      })}
+                    </time>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <!-- Card Layout -->
+            <div class={`bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-lg transition-shadow h-full flex flex-col ${
+              variant === 'dark' ? 'bg-gray-800 border-gray-700' : ''
+            }`}>
+              {post.featured_image && (
+                <div class={`relative overflow-hidden ${layout === 'featured' && index === 0 ? 'aspect-video lg:aspect-[4/3]' : 'aspect-video'}`}>
+                  <img 
+                    src={post.featured_image} 
+                    alt={post.title}
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    loading="lazy"
+                  />
+                  {post.category && (
+                    <span class="absolute top-4 left-4 px-3 py-1 bg-primary-500 text-white text-sm font-medium rounded-full">
+                      {post.category}
+                    </span>
+                  )}
+                </div>
+              )}
+              <div class="p-6 flex-1 flex flex-col">
+                <div class="flex items-center gap-2 text-sm text-gray-500 mb-3">
+                  {post.created_at && (
+                    <time datetime={post.created_at}>
+                      {new Date(post.created_at).toLocaleDateString('pt-BR', { 
+                        day: 'numeric', 
+                        month: 'long', 
+                        year: 'numeric' 
+                      })}
+                    </time>
+                  )}
+                </div>
+                <h3 class={`font-bold group-hover:text-primary-500 transition-colors ${
+                  layout === 'featured' && index === 0 ? 'text-2xl lg:text-3xl' : 'text-xl'
+                } ${variant === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  <a href={`/blog/${post.slug || post.id}`}>{post.title}</a>
+                </h3>
+                {post.excerpt && (
+                  <p class={`mt-3 line-clamp-3 flex-1 ${variant === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                    {post.excerpt}
+                  </p>
+                )}
+                <div class="mt-4 pt-4 border-t border-gray-100">
+                  <a 
+                    href={`/blog/${post.slug || post.id}`}
+                    class="inline-flex items-center gap-2 text-primary-500 hover:text-primary-600 font-medium"
+                  >
+                    Ler mais
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+        </article>
+      ))}
+    </div>
+    
+    {(cta_text || cta_url) && (
+      <div class="text-center mt-12">
+        <a 
+          href={cta_url || '/blog'}
+          class="inline-flex items-center gap-2 px-6 py-3 bg-primary-500 text-white font-semibold rounded-lg hover:bg-primary-600 transition-colors"
+        >
+          {cta_text || 'Ver todos os posts'}
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          </svg>
+        </a>
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+</style>

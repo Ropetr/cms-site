@@ -1,0 +1,172 @@
+---
+/**
+ * Carousel Block - Slides de imagens/conteúdo
+ */
+interface Props {
+  content: {
+    title?: string
+    items: Array<{
+      image: string
+      title?: string
+      description?: string
+    }>
+    autoplay?: boolean
+    interval?: number
+  }
+  layout?: string
+  variant?: string
+}
+
+const { content, layout = 'contained', variant = 'default' } = Astro.props
+const { title, items = [], autoplay = true, interval = 5000 } = content
+
+const variantClasses = {
+  default: 'bg-white',
+  dark: 'bg-gray-900 text-white',
+  light: 'bg-gray-50',
+  primary: 'bg-primary-500 text-white',
+}
+---
+
+<section class={`carousel-block py-12 ${variantClasses[variant] || variantClasses.default}`}>
+  {title && (
+    <div class="container mx-auto px-4 mb-8">
+      <h2 class="text-3xl font-bold text-center">{title}</h2>
+    </div>
+  )}
+  
+  <div 
+    class={`carousel-container relative overflow-hidden ${layout === 'contained' ? 'container mx-auto px-4' : ''}`}
+    data-autoplay={autoplay}
+    data-interval={interval}
+  >
+    <div class="carousel-track flex transition-transform duration-500">
+      {items.map((item, index) => (
+        <div class="carousel-slide flex-shrink-0 w-full" data-index={index}>
+          {item.image && (
+            <div class="relative aspect-video">
+              <img 
+                src={item.image} 
+                alt={item.title || `Slide ${index + 1}`}
+                class="w-full h-full object-cover"
+                loading={index === 0 ? 'eager' : 'lazy'}
+              />
+              {(item.title || item.description) && (
+                <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">
+                  <div class="p-6 text-white">
+                    {item.title && <h3 class="text-2xl font-bold mb-2">{item.title}</h3>}
+                    {item.description && <p class="text-white/90">{item.description}</p>}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+    
+    <!-- Navigation Arrows -->
+    {items.length > 1 && (
+      <>
+        <button 
+          class="carousel-prev absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/90 rounded-full shadow-lg flex items-center justify-center hover:bg-white transition-colors z-10"
+          aria-label="Slide anterior"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <button 
+          class="carousel-next absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/90 rounded-full shadow-lg flex items-center justify-center hover:bg-white transition-colors z-10"
+          aria-label="Próximo slide"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </>
+    )}
+    
+    <!-- Dots -->
+    {items.length > 1 && (
+      <div class="carousel-dots flex justify-center gap-2 mt-4">
+        {items.map((_, index) => (
+          <button 
+            class={`w-3 h-3 rounded-full transition-colors ${index === 0 ? 'bg-primary-500' : 'bg-gray-300'}`}
+            data-dot={index}
+            aria-label={`Ir para slide ${index + 1}`}
+          />
+        ))}
+      </div>
+    )}
+  </div>
+</section>
+
+<script>
+  document.querySelectorAll('.carousel-container').forEach(container => {
+    const track = container.querySelector('.carousel-track') as HTMLElement
+    const slides = container.querySelectorAll('.carousel-slide')
+    const dots = container.querySelectorAll('[data-dot]')
+    const prevBtn = container.querySelector('.carousel-prev')
+    const nextBtn = container.querySelector('.carousel-next')
+    
+    if (!track || slides.length === 0) return
+    
+    let current = 0
+    const total = slides.length
+    const autoplay = container.dataset.autoplay === 'true'
+    const interval = parseInt(container.dataset.interval || '5000')
+    
+    function goTo(index: number) {
+      current = ((index % total) + total) % total
+      track.style.transform = `translateX(-${current * 100}%)`
+      
+      dots.forEach((dot, i) => {
+        dot.classList.toggle('bg-primary-500', i === current)
+        dot.classList.toggle('bg-gray-300', i !== current)
+      })
+    }
+    
+    prevBtn?.addEventListener('click', () => goTo(current - 1))
+    nextBtn?.addEventListener('click', () => goTo(current + 1))
+    
+    dots.forEach(dot => {
+      dot.addEventListener('click', () => {
+        const index = parseInt((dot as HTMLElement).dataset.dot || '0')
+        goTo(index)
+      })
+    })
+    
+    // Autoplay
+    if (autoplay && total > 1) {
+      let timer = setInterval(() => goTo(current + 1), interval)
+      
+      container.addEventListener('mouseenter', () => clearInterval(timer))
+      container.addEventListener('mouseleave', () => {
+        timer = setInterval(() => goTo(current + 1), interval)
+      })
+    }
+    
+    // Touch/Swipe support
+    let touchStartX = 0
+    let touchEndX = 0
+    
+    container.addEventListener('touchstart', (e) => {
+      touchStartX = (e as TouchEvent).touches[0].clientX
+    }, { passive: true })
+    
+    container.addEventListener('touchend', (e) => {
+      touchEndX = (e as TouchEvent).changedTouches[0].clientX
+      const diff = touchStartX - touchEndX
+      if (Math.abs(diff) > 50) {
+        goTo(diff > 0 ? current + 1 : current - 1)
+      }
+    }, { passive: true })
+  })
+</script>
+
+<style>
+  .carousel-track {
+    will-change: transform;
+  }
+</style>

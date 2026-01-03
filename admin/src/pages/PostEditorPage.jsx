@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Save, ArrowLeft, Eye, Calendar, Tag, Star, Globe, FileText, Sparkles
+  Save, ArrowLeft, Eye, Star, Globe
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { Card, CardBody, CardHeader, Button, Input, Select, Badge, Loading } from '../components/ui'
+import { Card, CardBody, CardHeader, Button, Input, Select, Loading } from '../components/ui'
 import { postsService, categoriesService } from '../services/api'
 import MediaPicker from '../components/MediaPicker'
 import RichTextEditor from '../components/RichTextEditor'
+import { AIGenerateButton } from '../components/AIButton'
 
 export default function PostEditorPage() {
   const { id } = useParams()
@@ -73,7 +74,6 @@ export default function PostEditorPage() {
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     
-    // Auto-generate slug
     if (field === 'title' && isNew) {
       const slug = value
         .toLowerCase()
@@ -91,13 +91,27 @@ export default function PostEditorPage() {
       return
     }
     
-    const data = {
+    saveMutation.mutate({
       ...formData,
       status: newStatus || formData.status,
       is_featured: formData.is_featured ? 1 : 0,
+    })
+  }
+
+  // Handlers para IA
+  const handleAIContent = (data) => {
+    if (data.content) {
+      handleChange('content', data.content)
     }
-    
-    saveMutation.mutate(data)
+  }
+
+  const handleAISEO = (data) => {
+    if (data.meta_title) handleChange('meta_title', data.meta_title)
+    if (data.meta_description) handleChange('meta_description', data.meta_description)
+  }
+
+  const handleAIExcerpt = (data) => {
+    if (data.excerpt) handleChange('excerpt', data.excerpt)
   }
 
   if (!isNew && isLoading) return <Loading fullScreen text="Carregando post..." />
@@ -157,9 +171,16 @@ export default function PostEditorPage() {
               />
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Resumo / Excerpt
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Resumo / Excerpt
+                  </label>
+                  <AIGenerateButton
+                    type="excerpt"
+                    context={{ title: formData.title, content: formData.content }}
+                    onGenerate={handleAIExcerpt}
+                  />
+                </div>
                 <textarea
                   value={formData.excerpt}
                   onChange={(e) => handleChange('excerpt', e.target.value)}
@@ -174,9 +195,11 @@ export default function PostEditorPage() {
                   <label className="block text-sm font-medium text-gray-700">
                     Conteúdo
                   </label>
-                  <Button variant="ghost" size="sm" className="text-primary-600">
-                    <Sparkles className="w-4 h-4" /> Gerar com IA
-                  </Button>
+                  <AIGenerateButton
+                    type="content"
+                    context={{ title: formData.title, type: 'post', length: 'medium' }}
+                    onGenerate={handleAIContent}
+                  />
                 </div>
                 <RichTextEditor
                   value={formData.content}
@@ -253,9 +276,11 @@ export default function PostEditorPage() {
           <Card>
             <CardHeader className="flex items-center justify-between">
               <h2 className="font-semibold">SEO</h2>
-              <Button variant="ghost" size="sm" className="text-primary-600">
-                <Sparkles className="w-4 h-4" /> Gerar
-              </Button>
+              <AIGenerateButton
+                type="seo"
+                context={{ title: formData.title, content: formData.content, type: 'post' }}
+                onGenerate={handleAISEO}
+              />
             </CardHeader>
             <CardBody className="space-y-4">
               <Input

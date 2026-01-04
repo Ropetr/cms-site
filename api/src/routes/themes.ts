@@ -1,39 +1,24 @@
 /**
  * Rotas de Temas
+ * Multi-tenant: todas as queries filtram por site_id
  */
 
 import { Hono } from 'hono';
-import { verify } from 'hono/jwt';
-import { getCookie } from 'hono/cookie';
 import type { Env } from '../index';
+import { tenantMiddleware, getSiteId } from '../middleware/tenant';
 
 export const themesRoutes = new Hono<{ Bindings: Env }>();
 
-// Middleware de autenticação
-const authMiddleware = async (c: any, next: any) => {
-  try {
-    const token = getCookie(c, 'auth_token') || c.req.header('Authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return c.json({ error: 'Não autenticado' }, 401);
-    }
-    
-    const payload = await verify(token, c.env.JWT_SECRET);
-    c.set('user', payload);
-    await next();
-  } catch {
-    return c.json({ error: 'Token inválido' }, 401);
-  }
-};
-
-themesRoutes.use('*', authMiddleware);
+// Aplicar middleware de tenant em todas as rotas
+themesRoutes.use('*', tenantMiddleware);
 
 // Listar temas
 themesRoutes.get('/', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const result = await c.env.DB.prepare(
-      'SELECT * FROM themes ORDER BY is_active DESC, name ASC'
-    ).all();
+      'SELECT * FROM themes WHERE site_id = ? ORDER BY is_active DESC, name ASC'
+    ).bind(siteId).all();
     
     // Parsear JSON
     const themes = result.results.map((theme: any) => ({
@@ -52,9 +37,10 @@ themesRoutes.get('/', async (c) => {
 // Buscar tema ativo
 themesRoutes.get('/active', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const theme = await c.env.DB.prepare(
-      'SELECT * FROM themes WHERE is_active = 1'
-    ).first();
+      'SELECT * FROM themes WHERE is_active = 1 AND site_id = ?'
+    ).bind(siteId).first();
     
     if (!theme) {
       return c.json({ error: 'Nenhum tema ativo' }, 404);
@@ -77,11 +63,12 @@ themesRoutes.get('/active', async (c) => {
 // Buscar tema por ID
 themesRoutes.get('/:id', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const id = c.req.param('id');
     
     const theme = await c.env.DB.prepare(
-      'SELECT * FROM themes WHERE id = ?'
-    ).bind(id).first();
+      'SELECT * FROM themes WHERE id = ? AND site_id = ?'
+    ).bind(id, siteId).first();
     
     if (!theme) {
       return c.json({ error: 'Tema não encontrado' }, 404);
@@ -104,6 +91,7 @@ themesRoutes.get('/:id', async (c) => {
 // Criar tema
 themesRoutes.post('/', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const user = c.get('user');
     
     if (user.role !== 'admin') {
@@ -117,10 +105,10 @@ themesRoutes.post('/', async (c) => {
       return c.json({ error: 'Nome, slug e cores são obrigatórios' }, 400);
     }
     
-    // Verificar se slug existe
+    // Verificar se slug existe no mesmo site
     const existing = await c.env.DB.prepare(
-      'SELECT id FROM themes WHERE slug = ?'
-    ).bind(slug).first();
+      'SELECT id FROM themes WHERE slug = ? AND site_id = ?'
+    ).bind(slug, siteId).first();
     
     if (existing) {
       return c.json({ error: 'Slug já existe' }, 400);
@@ -128,23 +116,23 @@ themesRoutes.post('/', async (c) => {
     
     const id = `theme_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
     
-    // Se for ativo, desativar outros
+    // Se for ativo, desativar outros do mesmo site
     if (is_active) {
-      await c.env.DB.prepare('UPDATE themes SET is_active = 0').run();
+      await c.env.DB.prepare('UPDATE themes SET is_active = 0 WHERE site_id = ?').bind(siteId).run();
     }
     
     await c.env.DB.prepare(`
-      INSERT INTO themes (id, name, slug, colors, fonts, is_active)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO themes (id, site_id, name, slug, colors, fonts, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `).bind(
-      id, name, slug,
+      id, siteId, name, slug,
       JSON.stringify(colors),
       fonts ? JSON.stringify(fonts) : null,
       is_active ? 1 : 0
     ).run();
     
     // Invalidar cache
-    await c.env.CACHE.delete('theme:active');
+    await c.env.CACHE.delete(`${siteId}:theme:active`);
     
     return c.json({ success: true, data: { id, slug } }, 201);
   } catch (error) {
@@ -156,6 +144,7 @@ themesRoutes.post('/', async (c) => {
 // Atualizar tema
 themesRoutes.put('/:id', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const user = c.get('user');
     
     if (user.role !== 'admin') {
@@ -166,8 +155,8 @@ themesRoutes.put('/:id', async (c) => {
     const data = await c.req.json();
     
     const existing = await c.env.DB.prepare(
-      'SELECT slug FROM themes WHERE id = ?'
-    ).bind(id).first();
+      'SELECT slug FROM themes WHERE id = ? AND site_id = ?'
+    ).bind(id, siteId).first();
     
     if (!existing) {
       return c.json({ error: 'Tema não encontrado' }, 404);
@@ -175,11 +164,11 @@ themesRoutes.put('/:id', async (c) => {
     
     const { name, slug, colors, fonts } = data;
     
-    // Verificar se novo slug existe
+    // Verificar se novo slug existe no mesmo site
     if (slug && slug !== existing.slug) {
       const slugExists = await c.env.DB.prepare(
-        'SELECT id FROM themes WHERE slug = ? AND id != ?'
-      ).bind(slug, id).first();
+        'SELECT id FROM themes WHERE slug = ? AND id != ? AND site_id = ?'
+      ).bind(slug, id, siteId).first();
       
       if (slugExists) {
         return c.json({ error: 'Slug já existe' }, 400);
@@ -193,16 +182,16 @@ themesRoutes.put('/:id', async (c) => {
         colors = COALESCE(?, colors),
         fonts = ?,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
+      WHERE id = ? AND site_id = ?
     `).bind(
       name, slug,
       colors ? JSON.stringify(colors) : null,
       fonts ? JSON.stringify(fonts) : null,
-      id
+      id, siteId
     ).run();
     
     // Invalidar cache
-    await c.env.CACHE.delete('theme:active');
+    await c.env.CACHE.delete(`${siteId}:theme:active`);
     
     return c.json({ success: true });
   } catch (error) {
@@ -214,6 +203,7 @@ themesRoutes.put('/:id', async (c) => {
 // Ativar tema
 themesRoutes.post('/:id/activate', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const user = c.get('user');
     
     if (user.role !== 'admin') {
@@ -223,23 +213,23 @@ themesRoutes.post('/:id/activate', async (c) => {
     const id = c.req.param('id');
     
     const theme = await c.env.DB.prepare(
-      'SELECT id FROM themes WHERE id = ?'
-    ).bind(id).first();
+      'SELECT id FROM themes WHERE id = ? AND site_id = ?'
+    ).bind(id, siteId).first();
     
     if (!theme) {
       return c.json({ error: 'Tema não encontrado' }, 404);
     }
     
-    // Desativar todos
-    await c.env.DB.prepare('UPDATE themes SET is_active = 0').run();
+    // Desativar todos do mesmo site
+    await c.env.DB.prepare('UPDATE themes SET is_active = 0 WHERE site_id = ?').bind(siteId).run();
     
     // Ativar o selecionado
     await c.env.DB.prepare(
-      'UPDATE themes SET is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-    ).bind(id).run();
+      'UPDATE themes SET is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND site_id = ?'
+    ).bind(id, siteId).run();
     
     // Invalidar cache
-    await c.env.CACHE.delete('theme:active');
+    await c.env.CACHE.delete(`${siteId}:theme:active`);
     
     return c.json({ success: true });
   } catch (error) {
@@ -251,6 +241,7 @@ themesRoutes.post('/:id/activate', async (c) => {
 // Deletar tema
 themesRoutes.delete('/:id', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const user = c.get('user');
     
     if (user.role !== 'admin') {
@@ -260,8 +251,8 @@ themesRoutes.delete('/:id', async (c) => {
     const id = c.req.param('id');
     
     const theme = await c.env.DB.prepare(
-      'SELECT is_active FROM themes WHERE id = ?'
-    ).bind(id).first();
+      'SELECT is_active FROM themes WHERE id = ? AND site_id = ?'
+    ).bind(id, siteId).first();
     
     if (!theme) {
       return c.json({ error: 'Tema não encontrado' }, 404);
@@ -271,7 +262,7 @@ themesRoutes.delete('/:id', async (c) => {
       return c.json({ error: 'Não é possível deletar o tema ativo' }, 400);
     }
     
-    await c.env.DB.prepare('DELETE FROM themes WHERE id = ?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM themes WHERE id = ? AND site_id = ?').bind(id, siteId).run();
     
     return c.json({ success: true });
   } catch (error) {
@@ -283,6 +274,7 @@ themesRoutes.delete('/:id', async (c) => {
 // Duplicar tema
 themesRoutes.post('/:id/duplicate', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const user = c.get('user');
     
     if (user.role !== 'admin') {
@@ -292,8 +284,8 @@ themesRoutes.post('/:id/duplicate', async (c) => {
     const id = c.req.param('id');
     
     const theme = await c.env.DB.prepare(
-      'SELECT * FROM themes WHERE id = ?'
-    ).bind(id).first();
+      'SELECT * FROM themes WHERE id = ? AND site_id = ?'
+    ).bind(id, siteId).first();
     
     if (!theme) {
       return c.json({ error: 'Tema não encontrado' }, 404);
@@ -304,10 +296,10 @@ themesRoutes.post('/:id/duplicate', async (c) => {
     const newName = `${theme.name} (Cópia)`;
     
     await c.env.DB.prepare(`
-      INSERT INTO themes (id, name, slug, colors, fonts, is_active)
-      VALUES (?, ?, ?, ?, ?, 0)
+      INSERT INTO themes (id, site_id, name, slug, colors, fonts, is_active)
+      VALUES (?, ?, ?, ?, ?, ?, 0)
     `).bind(
-      newId, newName, newSlug, theme.colors, theme.fonts
+      newId, siteId, newName, newSlug, theme.colors, theme.fonts
     ).run();
     
     return c.json({ success: true, data: { id: newId, slug: newSlug } }, 201);

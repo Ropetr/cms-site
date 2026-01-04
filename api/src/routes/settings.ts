@@ -1,43 +1,28 @@
 /**
  * Rotas de Configurações
+ * Multi-tenant: todas as queries filtram por site_id
  */
 
 import { Hono } from 'hono';
-import { verify } from 'hono/jwt';
-import { getCookie } from 'hono/cookie';
 import type { Env } from '../index';
+import { tenantMiddleware, getSiteId } from '../middleware/tenant';
 
 export const settingsRoutes = new Hono<{ Bindings: Env }>();
 
-// Middleware de autenticação
-const authMiddleware = async (c: any, next: any) => {
-  try {
-    const token = getCookie(c, 'auth_token') || c.req.header('Authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return c.json({ error: 'Não autenticado' }, 401);
-    }
-    
-    const payload = await verify(token, c.env.JWT_SECRET);
-    c.set('user', payload);
-    await next();
-  } catch {
-    return c.json({ error: 'Token inválido' }, 401);
-  }
-};
-
-settingsRoutes.use('*', authMiddleware);
+// Aplicar middleware de tenant em todas as rotas
+settingsRoutes.use('*', tenantMiddleware);
 
 // Listar todas as configurações
 settingsRoutes.get('/', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const group = c.req.query('group');
     
-    let query = 'SELECT * FROM settings';
-    const params: any[] = [];
+    let query = 'SELECT * FROM settings WHERE site_id = ?';
+    const params: any[] = [siteId];
     
     if (group) {
-      query += ' WHERE group_name = ?';
+      query += ' AND group_name = ?';
       params.push(group);
     }
     
@@ -78,11 +63,12 @@ settingsRoutes.get('/', async (c) => {
 // Buscar configuração específica
 settingsRoutes.get('/:key', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const key = c.req.param('key');
     
     const setting = await c.env.DB.prepare(
-      'SELECT * FROM settings WHERE key = ?'
-    ).bind(key).first();
+      'SELECT * FROM settings WHERE key = ? AND site_id = ?'
+    ).bind(key, siteId).first();
     
     if (!setting) {
       return c.json({ error: 'Configuração não encontrada' }, 404);
@@ -106,6 +92,7 @@ settingsRoutes.get('/:key', async (c) => {
 // Atualizar configuração
 settingsRoutes.put('/:key', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const user = c.get('user');
     
     // Apenas admin pode alterar configurações
@@ -117,8 +104,8 @@ settingsRoutes.put('/:key', async (c) => {
     const data = await c.req.json();
     
     const existing = await c.env.DB.prepare(
-      'SELECT * FROM settings WHERE key = ?'
-    ).bind(key).first();
+      'SELECT * FROM settings WHERE key = ? AND site_id = ?'
+    ).bind(key, siteId).first();
     
     if (!existing) {
       return c.json({ error: 'Configuração não encontrada' }, 404);
@@ -135,12 +122,12 @@ settingsRoutes.put('/:key', async (c) => {
     }
     
     await c.env.DB.prepare(
-      'UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?'
-    ).bind(value, key).run();
+      'UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ? AND site_id = ?'
+    ).bind(value, key, siteId).run();
     
     // Invalidar cache
-    await c.env.CACHE.delete('settings:all');
-    await c.env.CACHE.delete(`settings:${key}`);
+    await c.env.CACHE.delete(`${siteId}:settings:all`);
+    await c.env.CACHE.delete(`${siteId}:settings:${key}`);
     
     return c.json({ success: true });
   } catch (error) {
@@ -152,6 +139,7 @@ settingsRoutes.put('/:key', async (c) => {
 // Atualizar múltiplas configurações
 settingsRoutes.put('/', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const user = c.get('user');
     
     // Apenas admin pode alterar configurações
@@ -168,8 +156,8 @@ settingsRoutes.put('/', async (c) => {
     
     for (const setting of settings) {
       const existing = await c.env.DB.prepare(
-        'SELECT type FROM settings WHERE key = ?'
-      ).bind(setting.key).first();
+        'SELECT type FROM settings WHERE key = ? AND site_id = ?'
+      ).bind(setting.key, siteId).first();
       
       if (!existing) continue;
       
@@ -184,14 +172,14 @@ settingsRoutes.put('/', async (c) => {
       }
       
       await c.env.DB.prepare(
-        'UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ?'
-      ).bind(value, setting.key).run();
+        'UPDATE settings SET value = ?, updated_at = CURRENT_TIMESTAMP WHERE key = ? AND site_id = ?'
+      ).bind(value, setting.key, siteId).run();
       
-      await c.env.CACHE.delete(`settings:${setting.key}`);
+      await c.env.CACHE.delete(`${siteId}:settings:${setting.key}`);
     }
     
     // Invalidar cache geral
-    await c.env.CACHE.delete('settings:all');
+    await c.env.CACHE.delete(`${siteId}:settings:all`);
     
     return c.json({ success: true });
   } catch (error) {
@@ -203,6 +191,7 @@ settingsRoutes.put('/', async (c) => {
 // Criar nova configuração (apenas admin)
 settingsRoutes.post('/', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const user = c.get('user');
     
     if (user.role !== 'admin') {
@@ -216,10 +205,10 @@ settingsRoutes.post('/', async (c) => {
       return c.json({ error: 'Chave é obrigatória' }, 400);
     }
     
-    // Verificar se já existe
+    // Verificar se já existe no mesmo site
     const existing = await c.env.DB.prepare(
-      'SELECT id FROM settings WHERE key = ?'
-    ).bind(key).first();
+      'SELECT id FROM settings WHERE key = ? AND site_id = ?'
+    ).bind(key, siteId).first();
     
     if (existing) {
       return c.json({ error: 'Configuração já existe' }, 400);
@@ -238,10 +227,10 @@ settingsRoutes.post('/', async (c) => {
     }
     
     await c.env.DB.prepare(`
-      INSERT INTO settings (id, key, value, type, group_name, label, description)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO settings (id, site_id, key, value, type, group_name, label, description)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
-      id, key, storedValue, type || 'string', group_name || 'general', label, description
+      id, siteId, key, storedValue, type || 'string', group_name || 'general', label, description
     ).run();
     
     return c.json({ success: true, data: { id, key } }, 201);
@@ -254,6 +243,7 @@ settingsRoutes.post('/', async (c) => {
 // Deletar configuração (apenas admin)
 settingsRoutes.delete('/:key', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const user = c.get('user');
     
     if (user.role !== 'admin') {
@@ -262,10 +252,10 @@ settingsRoutes.delete('/:key', async (c) => {
     
     const key = c.req.param('key');
     
-    await c.env.DB.prepare('DELETE FROM settings WHERE key = ?').bind(key).run();
+    await c.env.DB.prepare('DELETE FROM settings WHERE key = ? AND site_id = ?').bind(key, siteId).run();
     
-    await c.env.CACHE.delete('settings:all');
-    await c.env.CACHE.delete(`settings:${key}`);
+    await c.env.CACHE.delete(`${siteId}:settings:all`);
+    await c.env.CACHE.delete(`${siteId}:settings:${key}`);
     
     return c.json({ success: true });
   } catch (error) {

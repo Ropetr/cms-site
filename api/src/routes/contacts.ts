@@ -1,45 +1,30 @@
 /**
  * Rotas de Contatos/Leads
+ * Multi-tenant: todas as queries filtram por site_id
  */
 
 import { Hono } from 'hono';
-import { verify } from 'hono/jwt';
-import { getCookie } from 'hono/cookie';
 import type { Env } from '../index';
+import { tenantMiddleware, getSiteId } from '../middleware/tenant';
 
 export const contactsRoutes = new Hono<{ Bindings: Env }>();
 
-// Middleware de autenticação
-const authMiddleware = async (c: any, next: any) => {
-  try {
-    const token = getCookie(c, 'auth_token') || c.req.header('Authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return c.json({ error: 'Não autenticado' }, 401);
-    }
-    
-    const payload = await verify(token, c.env.JWT_SECRET);
-    c.set('user', payload);
-    await next();
-  } catch {
-    return c.json({ error: 'Token inválido' }, 401);
-  }
-};
-
-contactsRoutes.use('*', authMiddleware);
+// Aplicar middleware de tenant em todas as rotas
+contactsRoutes.use('*', tenantMiddleware);
 
 // Listar contatos
 contactsRoutes.get('/', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const status = c.req.query('status');
     const search = c.req.query('search');
     const page = parseInt(c.req.query('page') || '1');
     const limit = parseInt(c.req.query('limit') || '20');
     const offset = (page - 1) * limit;
     
-    let query = 'SELECT * FROM contacts WHERE 1=1';
-    let countQuery = 'SELECT COUNT(*) as total FROM contacts WHERE 1=1';
-    const params: any[] = [];
+    let query = 'SELECT * FROM contacts WHERE site_id = ?';
+    let countQuery = 'SELECT COUNT(*) as total FROM contacts WHERE site_id = ?';
+    const params: any[] = [siteId];
     
     if (status) {
       query += ' AND status = ?';
@@ -77,6 +62,7 @@ contactsRoutes.get('/', async (c) => {
 // Estatísticas de contatos
 contactsRoutes.get('/stats', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const stats = await c.env.DB.prepare(`
       SELECT 
         COUNT(*) as total,
@@ -87,7 +73,8 @@ contactsRoutes.get('/stats', async (c) => {
         SUM(CASE WHEN created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) as last_7_days,
         SUM(CASE WHEN created_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END) as last_30_days
       FROM contacts
-    `).first();
+      WHERE site_id = ?
+    `).bind(siteId).first();
     
     return c.json({ success: true, data: stats });
   } catch (error) {
@@ -99,11 +86,12 @@ contactsRoutes.get('/stats', async (c) => {
 // Buscar contato por ID
 contactsRoutes.get('/:id', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const id = c.req.param('id');
     
     const contact = await c.env.DB.prepare(
-      'SELECT * FROM contacts WHERE id = ?'
-    ).bind(id).first();
+      'SELECT * FROM contacts WHERE id = ? AND site_id = ?'
+    ).bind(id, siteId).first();
     
     if (!contact) {
       return c.json({ error: 'Contato não encontrado' }, 404);
@@ -119,6 +107,7 @@ contactsRoutes.get('/:id', async (c) => {
 // Atualizar status do contato
 contactsRoutes.put('/:id/status', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const id = c.req.param('id');
     const { status, notes } = await c.req.json();
     
@@ -127,8 +116,8 @@ contactsRoutes.put('/:id/status', async (c) => {
     }
     
     const existing = await c.env.DB.prepare(
-      'SELECT id FROM contacts WHERE id = ?'
-    ).bind(id).first();
+      'SELECT id FROM contacts WHERE id = ? AND site_id = ?'
+    ).bind(id, siteId).first();
     
     if (!existing) {
       return c.json({ error: 'Contato não encontrado' }, 404);
@@ -139,8 +128,8 @@ contactsRoutes.put('/:id/status', async (c) => {
         status = ?,
         notes = COALESCE(?, notes),
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).bind(status, notes, id).run();
+      WHERE id = ? AND site_id = ?
+    `).bind(status, notes, id, siteId).run();
     
     return c.json({ success: true });
   } catch (error) {
@@ -152,12 +141,13 @@ contactsRoutes.put('/:id/status', async (c) => {
 // Adicionar nota ao contato
 contactsRoutes.post('/:id/notes', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const id = c.req.param('id');
     const { notes } = await c.req.json();
     
     const existing = await c.env.DB.prepare(
-      'SELECT notes FROM contacts WHERE id = ?'
-    ).bind(id).first();
+      'SELECT notes FROM contacts WHERE id = ? AND site_id = ?'
+    ).bind(id, siteId).first();
     
     if (!existing) {
       return c.json({ error: 'Contato não encontrado' }, 404);
@@ -169,8 +159,8 @@ contactsRoutes.post('/:id/notes', async (c) => {
       : `[${new Date().toLocaleString('pt-BR')}]\n${notes}`;
     
     await c.env.DB.prepare(`
-      UPDATE contacts SET notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
-    `).bind(newNotes, id).run();
+      UPDATE contacts SET notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND site_id = ?
+    `).bind(newNotes, id, siteId).run();
     
     return c.json({ success: true });
   } catch (error) {
@@ -182,9 +172,10 @@ contactsRoutes.post('/:id/notes', async (c) => {
 // Deletar contato
 contactsRoutes.delete('/:id', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const id = c.req.param('id');
     
-    await c.env.DB.prepare('DELETE FROM contacts WHERE id = ?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM contacts WHERE id = ? AND site_id = ?').bind(id, siteId).run();
     
     return c.json({ success: true });
   } catch (error) {
@@ -196,9 +187,10 @@ contactsRoutes.delete('/:id', async (c) => {
 // Exportar contatos (CSV)
 contactsRoutes.get('/export/csv', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const result = await c.env.DB.prepare(
-      'SELECT name, email, phone, city, project_type, message, status, created_at FROM contacts ORDER BY created_at DESC'
-    ).all();
+      'SELECT name, email, phone, city, project_type, message, status, created_at FROM contacts WHERE site_id = ? ORDER BY created_at DESC'
+    ).bind(siteId).all();
     
     const headers = ['Nome', 'Email', 'Telefone', 'Cidade', 'Tipo de Projeto', 'Mensagem', 'Status', 'Data'];
     const rows = result.results.map((contact: any) => [

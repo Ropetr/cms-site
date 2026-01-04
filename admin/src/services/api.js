@@ -394,4 +394,35 @@ export const categoriesService = {
     return response.data
   },
 }
+
+
+// ============================================
+// AI (Workers AI)
+// ============================================
+export const aiService = {
+  generateContent: async (data) => {
+    const response = await api.post('/api/ai/generate-content', data)
+    return response.data
+  },
+  
+  generateSEO: async (data) => {
+    const response = await api.post('/api/ai/generate-seo', data)
+    return response.data
+  },
+  
+  generateExcerpt: async (data) => {
+    const response = await api.post('/api/ai/generate-excerpt', data)
+    return response.data
+  },
+  
+  improveText: async (data) => {
+    const response = await api.post('/api/ai/improve-text', data)
+    return response.data
+  },
+  
+  generateAlt: async (data) => {
+    const response = await api.post('/api/ai/generate-alt', data)
+    return response.data
+  },
+}
 export default api

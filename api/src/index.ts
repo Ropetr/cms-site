@@ -19,6 +19,7 @@ import { contactsRoutes } from './routes/contacts';
 import { postsRoutes } from './routes/posts';
 import { categoriesRoutes } from './routes/categories';
 import { publicRoutes } from './routes/public';
+import { aiRoutes } from './routes/ai';
 
 // Types
 export interface Env {
@@ -29,6 +30,7 @@ export interface Env {
   JWT_SECRET: string;
   ADMIN_ORIGIN: string;
   SITE_ORIGIN: string;
+  AI: any; // Workers AI binding
 }
 
 // Presets de imagem (whitelist)
@@ -111,6 +113,7 @@ app.route('/api/themes', themesRoutes);
 app.route('/api/contacts', contactsRoutes);
 app.route('/api/posts', postsRoutes);
 app.route('/api/categories', categoriesRoutes);
+app.route('/api/ai', aiRoutes);
 
 // =============================================
 // ROTA DE IMAGENS OTIMIZADAS
@@ -273,3 +276,4 @@ app.onError((err, c) => {
 });
 
 export default app;
+

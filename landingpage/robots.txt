@@ -1,0 +1,11 @@
+# robots.txt - FIO Landing Page
+# https://developers.google.com/search/docs/crawling-indexing/robots/intro
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://fio-landingpage.pages.dev/sitemap.xml
+
+# Crawl-delay (opcional, respeitado por alguns bots)
+Crawl-delay: 1

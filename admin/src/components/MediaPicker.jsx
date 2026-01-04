@@ -65,13 +65,14 @@ export default function MediaPicker({
       const formData = new FormData()
       formData.append('file', file)
       
-      const response = await fetch(`${API_URL}/api/media/upload`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-        },
-        body: formData
-      })
+            const response = await fetch(`${API_URL}/api/media/upload`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+                'X-Site-Id': localStorage.getItem('current_site_id') || ''
+              },
+              body: formData
+            })
       
       if (!response.ok) {
         throw new Error('Upload failed')
@@ -219,7 +220,7 @@ export default function MediaPicker({
         <div className="fixed inset-0 z-50 overflow-hidden">
           <div className="absolute inset-0 bg-black/50" onClick={handleClose} />
           
-          <div className="absolute inset-4 md:inset-10 bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden">
+          <div className="absolute inset-8 md:inset-20 lg:inset-32 bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden max-w-5xl max-h-[80vh] mx-auto my-auto left-0 right-0 top-0 bottom-0">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b">
               <h2 className="text-xl font-semibold text-gray-900">Biblioteca de Mídia</h2>

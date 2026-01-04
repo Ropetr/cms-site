@@ -152,8 +152,9 @@ app.route('', seoRoutes);
  * - /images/photo.jpg?w=800&h=600&q=80
  * - /images/photo.jpg?preset=product_card&focal=0.7,0.3
  */
-app.get('/images/:filename', async (c) => {
-  const filename = c.req.param('filename');
+app.get('/images/*', async (c) => {
+  // Captura o path completo após /images/ (ex: general/timestamp.png)
+  const filename = c.req.path.replace('/images/', '');
   const url = new URL(c.req.url);
   
   // Parâmetros
@@ -254,8 +255,9 @@ app.get('/images/:filename', async (c) => {
 });
 
 // Rota raw para servir imagem original (usado pelo Image Resizing)
-app.get('/raw/:filename', async (c) => {
-  const filename = c.req.param('filename');
+app.get('/raw/*', async (c) => {
+  // Captura o path completo após /raw/ (ex: general/timestamp.png)
+  const filename = c.req.path.replace('/raw/', '');
   const object = await c.env.MEDIA.get(filename);
   
   if (!object) {

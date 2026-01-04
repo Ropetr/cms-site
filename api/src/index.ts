@@ -24,6 +24,8 @@ import { seoRoutes } from './routes/seo';
 import { organizationsRoutes } from './routes/organizations';
 import { sitesRoutes } from './routes/sites';
 import auditRoutes from './routes/audit';
+import cacheRoutes from './routes/cache';
+import queueRoutes from './routes/queue';
 
 // Types
 export interface Env {
@@ -121,6 +123,8 @@ app.route('/api/ai', aiRoutes);
 app.route('/api/organizations', organizationsRoutes);
 app.route('/api/sites', sitesRoutes);
 app.route('/api/audit', auditRoutes);
+app.route('/api/cache', cacheRoutes);
+app.route('/api/queue', queueRoutes);
 
 // SEO routes (sitemap.xml, robots.txt)
 app.route('', seoRoutes);

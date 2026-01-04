@@ -1,48 +1,26 @@
 ---
 /**
- * Blog Post Page - Post individual (SSR via Cloudflare Pages Functions)
- * Note: Esta página usa getStaticPaths para pré-renderização
+ * Blog Post Page - Post individual (SSR)
  */
 import Base from '../../layouts/Base.astro'
-
-const API_URL = import.meta.env.PUBLIC_API_URL || 'https://cms-site-api.planacacabamentos.workers.dev'
-
-export async function getStaticPaths() {
-  try {
-    const res = await fetch(`${API_URL}/api/public/posts?limit=100`)
-    if (!res.ok) return []
-    const data = await res.json()
-    const posts = data.data || []
-    return posts.map((post: any) => ({
-      params: { slug: post.slug },
-      props: { post }
-    }))
-  } catch {
-    return []
-  }
-}
+import { getSettings, getPost } from '../../lib/api'
 
 const { slug } = Astro.params
-const { post: preloadedPost } = Astro.props
+const siteId = Astro.locals.siteId
 
 let settings: any = {}
-let post = preloadedPost
+let post: any = null
 let related: any[] = []
 
 try {
-  const settingsRes = await fetch(`${API_URL}/api/public/settings`)
-  if (settingsRes.ok) settings = (await settingsRes.json()).data || {}
+  const [settingsData, postData] = await Promise.all([
+    getSettings(siteId),
+    getPost(slug as string, siteId)
+  ])
   
-  if (!post) {
-    const postRes = await fetch(`${API_URL}/api/public/posts/${slug}`)
-    if (postRes.ok) {
-      const data = await postRes.json()
-      post = data.data || null
-      related = post?.related || []
-    }
-  } else {
-    related = post.related || []
-  }
+  settings = settingsData || {}
+  post = postData || null
+  related = post?.related || []
 } catch (error) {
   console.error('Error fetching post:', error)
 }

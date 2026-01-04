@@ -1,31 +1,17 @@
 ---
 import Base from '../layouts/Base.astro';
 import BlockRenderer from '../components/blocks/BlockRenderer.astro';
-import { getPage, getAllPages } from '../lib/api';
-
-export async function getStaticPaths() {
-  try {
-    const pages = await getAllPages();
-    return pages
-      .filter((p: any) => p.slug !== 'home' && p.status === 'published')
-      .map((page: any) => ({
-        params: { slug: page.slug },
-        props: { pageId: page.id },
-      }));
-  } catch (e) {
-    console.error('Error getting pages:', e);
-    return [];
-  }
-}
+import { getPage } from '../lib/api';
 
 const { slug } = Astro.params;
+const siteId = Astro.locals.siteId;
 
 let page: any = null;
 let sections: any[] = [];
 let notFound = false;
 
 try {
-  const data = await getPage(slug as string);
+  const data = await getPage(slug as string, siteId);
   page = data.page || data;
   sections = data.sections || [];
   

@@ -28,11 +28,11 @@ const isOverlay = variant === 'overlay' || variant === 'dark';
 ---
 
 <section class:list={['hero-banner', `layout-${layout}`, `variant-${variant}`]}>
-  {imageUrl && (
-    <div class="hero-image">
-      <img src={imageUrl} alt={heroTitle} loading="eager" />
-    </div>
-  )}
+    {imageUrl && (
+      <div class="hero-image">
+        <img src={imageUrl} alt={heroTitle} loading="eager" fetchpriority="high" decoding="async" />
+      </div>
+    )}
   
   <div class:list={['hero-content', { 'has-overlay': isOverlay && imageUrl }]}>
     <div class="container mx-auto px-4">

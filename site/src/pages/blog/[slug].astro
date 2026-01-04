@@ -63,6 +63,27 @@ const formatDate = (date: string) => {
   <Base
     title={`${post.meta_title || post.title} | ${siteName}`}
     description={post.meta_description || post.excerpt}
+    ogImage={post.featured_image}
+    schema={{
+      type: 'blogPosting',
+      data: {
+        title: post.title,
+        excerpt: post.excerpt,
+        meta_description: post.meta_description,
+        slug: post.slug,
+        featured_image: post.featured_image,
+        published_at: post.published_at,
+        updated_at: post.updated_at,
+        created_at: post.created_at,
+        author_name: post.author_name,
+        category_name: post.category_name
+      }
+    }}
+    breadcrumbs={[
+      { name: 'Home', url: '/' },
+      { name: 'Blog', url: '/blog' },
+      { name: post.title }
+    ]}
   >
     <article class="py-8">
       <div class="container mx-auto px-4">

@@ -98,16 +98,19 @@ export default function PageEditorPage() {
   const addSectionMutation = useMutation({
     mutationFn: (data) => pagesService.addSection(id, data),
     onSuccess: () => { queryClient.invalidateQueries(['page-sections', id]); toast.success('Bloco adicionado!'); setShowAddBlock(false) },
+    onError: (e) => toast.error(e.response?.data?.error || 'Erro ao adicionar bloco'),
   })
 
   const updateSectionMutation = useMutation({
     mutationFn: ({ sectionId, data }) => pagesService.updateSection(id, sectionId, data),
     onSuccess: () => { queryClient.invalidateQueries(['page-sections', id]); toast.success('Bloco atualizado!'); setEditingSection(null) },
+    onError: (e) => toast.error(e.response?.data?.error || 'Erro ao atualizar bloco'),
   })
 
   const deleteSectionMutation = useMutation({
     mutationFn: (sectionId) => pagesService.deleteSection(id, sectionId),
     onSuccess: () => { queryClient.invalidateQueries(['page-sections', id]); toast.success('Bloco removido!') },
+    onError: (e) => toast.error(e.response?.data?.error || 'Erro ao remover bloco'),
   })
 
   const handleInputChange = (field, value) => {

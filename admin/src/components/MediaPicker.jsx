@@ -65,14 +65,14 @@ export default function MediaPicker({
       const formData = new FormData()
       formData.append('file', file)
       
-            const response = await fetch(`${API_URL}/api/media/upload`, {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-                'X-Site-Id': localStorage.getItem('current_site_id') || ''
-              },
-              body: formData
-            })
+      const response = await fetch(`${API_URL}/api/media/upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'X-Site-Id': localStorage.getItem('active_site_id') || ''
+        },
+        body: formData
+      })
       
       if (!response.ok) {
         throw new Error('Upload failed')

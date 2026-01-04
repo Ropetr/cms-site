@@ -62,6 +62,24 @@ const DANGEROUS_PROTOCOLS = [
 ];
 
 /**
+ * Remove unterminated dangerous tags (tags without closing >)
+ * This handles cases like <script without > that could bypass other filters
+ */
+const removeUnterminatedTags = (html: string): string => {
+  let result = html;
+  
+  for (const tag of DANGEROUS_TAGS) {
+    const unterminatedRegex = new RegExp(`<${tag}(?:\\s[^>]*)?$`, 'gi');
+    result = result.replace(unterminatedRegex, '');
+    
+    const unterminatedMidRegex = new RegExp(`<${tag}(?:\\s[^>]*)?(?=<)`, 'gi');
+    result = result.replace(unterminatedMidRegex, '');
+  }
+  
+  return result;
+};
+
+/**
  * Remove dangerous tags from HTML
  * Uses iterative approach to handle nested/malformed tags
  */
@@ -85,6 +103,8 @@ const removeDangerousTags = (html: string): string => {
     const scriptContentRegex = /<script\b[^<]*(?:(?!<\s*\/\s*script\s*>)<[^<]*)*<\s*\/\s*script\s*>/gi;
     result = result.replace(scriptContentRegex, '');
   }
+  
+  result = removeUnterminatedTags(result);
   
   return result;
 };
@@ -128,6 +148,7 @@ const removeDangerousProtocols = (html: string): string => {
 /**
  * Remove HTML comments (can contain IE conditional comments with scripts)
  * Uses iterative approach to handle nested comments
+ * Also removes unterminated comments (<!-- without -->)
  */
 const removeComments = (html: string): string => {
   let result = html;
@@ -137,6 +158,9 @@ const removeComments = (html: string): string => {
     previousResult = result;
     result = result.replace(/<!--[\s\S]*?-->/g, '');
   }
+  
+  result = result.replace(/<!--[\s\S]*$/g, '');
+  result = result.replace(/<!--(?![\s\S]*-->)[\s\S]*/g, '');
   
   return result;
 };

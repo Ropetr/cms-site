@@ -1,0 +1,221 @@
+---
+/**
+ * Schema.org JSON-LD Component
+ * Gera dados estruturados para SEO
+ */
+
+interface Props {
+  type: 'organization' | 'website' | 'breadcrumb' | 'blogPosting' | 'localBusiness' | 'product' | 'faq';
+  data?: any;
+  settings?: any;
+}
+
+const { type, data = {}, settings = {} } = Astro.props;
+
+const siteUrl = settings.site_url || 'https://cms-site.pages.dev';
+const siteName = settings.site_name || 'CMS Site';
+const logo = settings.logo_url || `${siteUrl}/logo.png`;
+
+// Schema para Organização
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": siteName,
+  "url": siteUrl,
+  "logo": logo,
+  "description": settings.site_description || '',
+  "address": settings.address ? {
+    "@type": "PostalAddress",
+    "streetAddress": settings.address,
+    "addressLocality": settings.city || '',
+    "addressRegion": settings.state || '',
+    "postalCode": settings.zip || '',
+    "addressCountry": "BR"
+  } : undefined,
+  "contactPoint": settings.phone ? {
+    "@type": "ContactPoint",
+    "telephone": settings.phone,
+    "contactType": "customer service",
+    "availableLanguage": "Portuguese"
+  } : undefined,
+  "sameAs": [
+    settings.facebook_url,
+    settings.instagram_url,
+    settings.linkedin_url,
+    settings.youtube_url,
+  ].filter(Boolean)
+};
+
+// Schema para WebSite (com SearchAction)
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": siteName,
+  "url": siteUrl,
+  "description": settings.site_description || '',
+  "publisher": {
+    "@type": "Organization",
+    "name": siteName,
+    "logo": {
+      "@type": "ImageObject",
+      "url": logo
+    }
+  },
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": `${siteUrl}/busca?q={search_term_string}`,
+    "query-input": "required name=search_term_string"
+  }
+};
+
+// Schema para Breadcrumb
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": (data.items || []).map((item: any, index: number) => ({
+    "@type": "ListItem",
+    "position": index + 1,
+    "name": item.name,
+    "item": item.url ? `${siteUrl}${item.url}` : undefined
+  }))
+};
+
+// Schema para BlogPosting
+const blogPostingSchema = {
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  "headline": data.title || '',
+  "description": data.excerpt || data.meta_description || '',
+  "image": data.featured_image || logo,
+  "url": `${siteUrl}/blog/${data.slug}`,
+  "datePublished": data.published_at || data.created_at,
+  "dateModified": data.updated_at || data.published_at,
+  "author": {
+    "@type": "Person",
+    "name": data.author_name || siteName
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": siteName,
+    "logo": {
+      "@type": "ImageObject",
+      "url": logo
+    }
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": `${siteUrl}/blog/${data.slug}`
+  },
+  "keywords": data.tags || data.category_name || ''
+};
+
+// Schema para LocalBusiness
+const localBusinessSchema = {
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": siteName,
+  "url": siteUrl,
+  "logo": logo,
+  "image": settings.og_image || logo,
+  "description": settings.site_description || '',
+  "telephone": settings.phone || '',
+  "email": settings.email || '',
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": settings.address || '',
+    "addressLocality": settings.city || '',
+    "addressRegion": settings.state || '',
+    "postalCode": settings.zip || '',
+    "addressCountry": "BR"
+  },
+  "geo": settings.latitude && settings.longitude ? {
+    "@type": "GeoCoordinates",
+    "latitude": settings.latitude,
+    "longitude": settings.longitude
+  } : undefined,
+  "openingHoursSpecification": settings.opening_hours ? {
+    "@type": "OpeningHoursSpecification",
+    "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+    "opens": "08:00",
+    "closes": "18:00"
+  } : undefined,
+  "priceRange": settings.price_range || "$$",
+  "sameAs": [
+    settings.facebook_url,
+    settings.instagram_url,
+    settings.linkedin_url,
+  ].filter(Boolean)
+};
+
+// Schema para Product
+const productSchema = {
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": data.name || data.title || '',
+  "description": data.description || '',
+  "image": data.image || data.featured_image || '',
+  "sku": data.sku || data.id || '',
+  "brand": {
+    "@type": "Brand",
+    "name": data.brand || siteName
+  },
+  "offers": data.price ? {
+    "@type": "Offer",
+    "price": data.price,
+    "priceCurrency": "BRL",
+    "availability": data.in_stock !== false ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+    "seller": {
+      "@type": "Organization",
+      "name": siteName
+    }
+  } : undefined
+};
+
+// Schema para FAQ
+const faqSchema = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": (data.items || []).map((item: any) => ({
+    "@type": "Question",
+    "name": item.question,
+    "acceptedAnswer": {
+      "@type": "Answer",
+      "text": item.answer
+    }
+  }))
+};
+
+// Selecionar schema baseado no tipo
+const schemas: Record<string, any> = {
+  organization: organizationSchema,
+  website: websiteSchema,
+  breadcrumb: breadcrumbSchema,
+  blogPosting: blogPostingSchema,
+  localBusiness: localBusinessSchema,
+  product: productSchema,
+  faq: faqSchema,
+};
+
+const selectedSchema = schemas[type];
+
+// Limpar valores undefined
+const cleanSchema = (obj: any): any => {
+  if (Array.isArray(obj)) {
+    return obj.map(cleanSchema).filter(Boolean);
+  }
+  if (obj && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj)
+        .filter(([_, v]) => v !== undefined && v !== null && v !== '')
+        .map(([k, v]) => [k, cleanSchema(v)])
+    );
+  }
+  return obj;
+};
+
+const finalSchema = cleanSchema(selectedSchema);
+---
+
+{finalSchema && Object.keys(finalSchema).length > 2 && (
+  <script type="application/ld+json" set:html={JSON.stringify(finalSchema, null, 0)} />
+)}

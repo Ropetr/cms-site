@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Fio — Fundo Premium</title>
+  <style>
+    :root{
+      --bg: #0B0B0D;      /* preto premium */
+      --bg2:#14161A;      /* grafite */
+      --silver:#C9CED6;
+      --gold:#D4AF37;
+      --red:#E11D2E;
+    }
+
+    *{ box-sizing: border-box; }
+    body{
+      margin:0;
+      min-height:100vh;
+      color:#F2F4F7;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+
+      /* Base + profundidade */
+      background:
+        radial-gradient(1200px 700px at 75% 30%, rgba(212,175,55,0.10), transparent 55%),
+        radial-gradient(1000px 600px at 20% 65%, rgba(225,29,46,0.08), transparent 60%),
+        radial-gradient(900px 500px at 50% 110%, rgba(201,206,214,0.06), transparent 60%),
+        linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.0)),
+        var(--bg);
+    }
+
+    /* Vinheta + “film grain” leve (sem imagem) */
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+
+      /* vinheta */
+      background:
+        radial-gradient(1200px 800px at 50% 40%, transparent 55%, rgba(0,0,0,0.55) 100%),
+        /* “ruído” discreto via pattern */
+        repeating-linear-gradient(
+          0deg,
+          rgba(255,255,255,0.015),
+          rgba(255,255,255,0.015) 1px,
+          rgba(0,0,0,0.0) 2px,
+          rgba(0,0,0,0.0) 4px
+        );
+      mix-blend-mode: overlay;
+      opacity: 0.45;
+    }
+
+    .wrap{
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 72px 20px;
+    }
+
+    .card{
+      background: rgba(20,22,26,0.72);
+      border: 1px solid rgba(201,206,214,0.12);
+      border-radius: 18px;
+      padding: 28px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+    }
+
+    .kicker{
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      font-size: 12px;
+      color: rgba(201,206,214,0.75);
+      margin-bottom: 10px;
+    }
+
+    h1{
+      margin: 0 0 10px 0;
+      font-size: 42px;
+      line-height: 1.1;
+    }
+
+    p{
+      margin: 0 0 18px 0;
+      color: rgba(242,244,247,0.82);
+      font-size: 16px;
+      line-height: 1.6;
+      max-width: 62ch;
+    }
+
+    .actions{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top: 18px;
+    }
+
+    .btn{
+      border: 1px solid rgba(201,206,214,0.18);
+      background: rgba(255,255,255,0.02);
+      color: #F2F4F7;
+      padding: 12px 16px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn.primary{
+      border-color: rgba(225,29,46,0.35);
+      background: linear-gradient(180deg, rgba(225,29,46,1), rgba(181,18,32,1));
+    }
+    .badge{
+      display:inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(212,175,55,0.35);
+      color: rgba(212,175,55,0.95);
+      background: rgba(212,175,55,0.06);
+      font-size: 12px;
+      font-weight: 700;
+      margin-left: 10px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="kicker">Fio • F.I.O. — Formatação, Interface e Otimização</div>
+      <h1>Formate. Publique. Otimize.<span class="badge">Premium</span></h1>
+      <p>
+        Este é o fundo preto premium usando <strong>#0B0B0D</strong> com gradientes sutis, vinheta e textura leve.
+        Você pode aplicar o mesmo CSS no site e no sistema.
+      </p>
+
+      <div class="actions">
+        <button class="btn primary">Criar meu site</button>
+        <button class="btn">Ver demo</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

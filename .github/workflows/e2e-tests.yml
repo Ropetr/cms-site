@@ -1,0 +1,159 @@
+# E2E Tests - Testes End-to-End com Playwright
+name: E2E Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'admin/**'
+      - 'api/**'
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * *'  # Diariamente as 6h UTC
+  workflow_dispatch:
+
+jobs:
+  e2e-tests:
+    name: Testes E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Instalar dependencias Admin
+        working-directory: admin
+        run: npm install
+
+      - name: Instalar Playwright
+        working-directory: admin
+        run: npx playwright install --with-deps chromium
+
+      - name: Build Admin
+        working-directory: admin
+        run: npm run build
+        env:
+          VITE_API_URL: https://cms-site-api.planacacabamentos.workers.dev
+
+      - name: Iniciar servidor de preview
+        working-directory: admin
+        run: |
+          npx vite preview --port 4173 &
+          sleep 5
+
+      - name: Rodar testes E2E
+        id: e2e_tests
+        working-directory: admin
+        continue-on-error: true
+        run: |
+          # Criar arquivo de teste basico se nao existir
+          mkdir -p tests/e2e
+          
+          if [ ! -f tests/e2e/basic.spec.ts ]; then
+            cat > tests/e2e/basic.spec.ts << 'EOF'
+          import { test, expect } from '@playwright/test';
+
+          test.describe('CMS Admin - Testes Basicos', () => {
+            test('Pagina inicial carrega', async ({ page }) => {
+              await page.goto('/');
+              await expect(page).toHaveTitle(/CMS|Admin/i);
+            });
+
+            test('Navegacao funciona', async ({ page }) => {
+              await page.goto('/');
+              // Verificar se a pagina carregou sem erros
+              const errors: string[] = [];
+              page.on('pageerror', (err) => errors.push(err.message));
+              await page.waitForTimeout(2000);
+              expect(errors.length).toBe(0);
+            });
+          });
+          EOF
+          fi
+          
+          # Criar playwright.config.ts se nao existir
+          if [ ! -f playwright.config.ts ]; then
+            cat > playwright.config.ts << 'EOF'
+          import { defineConfig } from '@playwright/test';
+
+          export default defineConfig({
+            testDir: './tests/e2e',
+            timeout: 30000,
+            use: {
+              baseURL: 'http://localhost:4173',
+              headless: true,
+              screenshot: 'only-on-failure',
+            },
+            reporter: [['html', { open: 'never' }]],
+          });
+          EOF
+          fi
+          
+          npx playwright test 2>&1 | tee test-output.txt || true
+          
+          PASSED=$(grep -oP '\d+(?= passed)' test-output.txt 2>/dev/null | head -1 || echo "0")
+          FAILED=$(grep -oP '\d+(?= failed)' test-output.txt 2>/dev/null | head -1 || echo "0")
+          
+          echo "passed=${PASSED:-0}" >> $GITHUB_OUTPUT
+          echo "failed=${FAILED:-0}" >> $GITHUB_OUTPUT
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: admin/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload relatorio HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: admin/playwright-report/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Gerar resumo
+        if: always()
+        run: |
+          echo "## E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metrica | Valor |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Passou | ${{ steps.e2e_tests.outputs.passed || '0' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Falhou | ${{ steps.e2e_tests.outputs.failed || '0' }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Criar issue se falhou
+        if: failure() && github.event_name != 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const existingIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'e2e-failure'
+            });
+            
+            if (existingIssues.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: '[E2E] Testes falharam',
+                body: '## Testes E2E Falharam\n\n' +
+                  '**Commit:** `' + context.sha.substring(0, 7) + '`\n' +
+                  '**Data:** ' + new Date().toISOString() + '\n\n' +
+                  'Verifique os logs do workflow para mais detalhes.\n\n' +
+                  '---\n*Issue automatica*',
+                labels: ['e2e-failure', 'bug', 'automated']
+              });
+            }

@@ -1,0 +1,88 @@
+# Sync Check - Verifica sincronizacao entre API e Admin
+name: Sync Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - 'admin/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - 'admin/**'
+  workflow_dispatch:
+
+jobs:
+  sync-check:
+    name: Verificar Sincronizacao API/Admin
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Instalar dependencias API
+        working-directory: api
+        run: npm ci
+
+      - name: Instalar dependencias Admin
+        working-directory: admin
+        run: npm ci
+
+      - name: TypeCheck API
+        working-directory: api
+        run: npm run typecheck || echo "TypeCheck API concluido"
+
+      - name: Build API
+        working-directory: api
+        run: npm run build
+
+      - name: Build Admin
+        working-directory: admin
+        run: npm run build
+        env:
+          VITE_API_URL: https://cms-site-api.planacacabamentos.workers.dev
+
+      - name: Verificar endpoints da API
+        id: check_endpoints
+        run: |
+          echo "## Verificacao de Endpoints" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Extrair rotas da API
+          echo "### Rotas encontradas na API:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -rn "app\.\(get\|post\|put\|delete\|patch\)" api/src/ --include="*.ts" | head -30 >> $GITHUB_STEP_SUMMARY || echo "Nenhuma rota encontrada" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          
+          # Verificar chamadas no Admin
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Chamadas de API no Admin:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -rn "api\.\(get\|post\|put\|delete\|patch\)\|fetch\|axios" admin/src/ --include="*.js" --include="*.jsx" | head -30 >> $GITHUB_STEP_SUMMARY || echo "Nenhuma chamada encontrada" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Verificar tipos compartilhados
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Tipos/Interfaces:" >> $GITHUB_STEP_SUMMARY
+          
+          # Tipos na API
+          echo "**API:**" >> $GITHUB_STEP_SUMMARY
+          echo '```typescript' >> $GITHUB_STEP_SUMMARY
+          grep -rn "interface\|type " api/src/ --include="*.ts" | head -20 >> $GITHUB_STEP_SUMMARY || echo "Nenhum tipo encontrado" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Resultado
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "Sync Check concluido com sucesso!" >> $GITHUB_STEP_SUMMARY

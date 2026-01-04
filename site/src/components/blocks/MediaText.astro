@@ -30,7 +30,14 @@ const isMediaRight = layout === 'media-right';
       <div class="media-column">
         {imageUrl && (
           <div class="media-wrapper">
-            <img src={imageUrl} alt={imageAlt} loading="lazy" />
+            <img 
+              src={imageUrl} 
+              alt={imageAlt} 
+              loading="lazy"
+              decoding="async"
+              width="600"
+              height="400"
+            />
           </div>
         )}
       </div>

@@ -67,6 +67,9 @@ const gridClasses = {
                     alt={product.name}
                     class="w-full h-full object-cover rounded-lg"
                     loading="lazy"
+                    decoding="async"
+                    width="160"
+                    height="160"
                   />
                 </div>
               )}
@@ -107,6 +110,9 @@ const gridClasses = {
                     alt={product.name}
                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     loading="lazy"
+                    decoding="async"
+                    width="400"
+                    height="400"
                   />
                   {product.category && (
                     <span class="absolute top-4 left-4 px-3 py-1 bg-white/90 text-sm font-medium rounded-full">

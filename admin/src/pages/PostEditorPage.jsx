@@ -10,6 +10,7 @@ import { postsService, categoriesService } from '../services/api'
 import MediaPicker from '../components/MediaPicker'
 import RichTextEditor from '../components/RichTextEditor'
 import { AIGenerateButton } from '../components/AIButton'
+import SEOFields from '../components/SEOFields'
 
 export default function PostEditorPage() {
   const { id } = useParams()
@@ -282,30 +283,18 @@ export default function PostEditorPage() {
                 onGenerate={handleAISEO}
               />
             </CardHeader>
-            <CardBody className="space-y-4">
-              <Input
-                label="Meta Title"
-                value={formData.meta_title}
-                onChange={(e) => handleChange('meta_title', e.target.value)}
-                placeholder="Título para SEO"
-                helper={`${formData.meta_title?.length || 0}/60`}
+            <CardBody>
+              <SEOFields
+                metaTitle={formData.meta_title}
+                metaDescription={formData.meta_description}
+                onMetaTitleChange={(value) => handleChange('meta_title', value)}
+                onMetaDescriptionChange={(value) => handleChange('meta_description', value)}
+                pageTitle={formData.title}
+                slug={`blog/${formData.slug}`}
+                siteName="fiosites.com"
+                showPreview={true}
+                required={formData.status === 'published'}
               />
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Meta Description
-                </label>
-                <textarea
-                  value={formData.meta_description}
-                  onChange={(e) => handleChange('meta_description', e.target.value)}
-                  placeholder="Descrição para SEO"
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  {formData.meta_description?.length || 0}/160
-                </p>
-              </div>
             </CardBody>
           </Card>
         </div>

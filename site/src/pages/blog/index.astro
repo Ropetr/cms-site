@@ -72,6 +72,10 @@ const formatDate = (date: string) => {
                             alt={post.title}
                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             loading={index < 4 ? 'eager' : 'lazy'}
+                            fetchpriority={index === 0 ? 'high' : 'auto'}
+                            decoding="async"
+                            width="800"
+                            height="450"
                           />
                         </div>
                       )}

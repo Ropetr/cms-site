@@ -10,6 +10,7 @@ import toast from 'react-hot-toast'
 import { Card, CardBody, CardHeader, Button, Input, Select, Modal, Loading } from '../components/ui'
 import { pagesService } from '../services/api'
 import MediaPicker, { MediaPickerMultiple } from '../components/MediaPicker'
+import SEOFields from '../components/SEOFields'
 
 const BLOCK_TYPES = [
   { type: 'hero_banner', label: 'Banner Principal', icon: Image, description: 'Banner com imagem de fundo' },
@@ -194,13 +195,18 @@ export default function PageEditorPage() {
           </Card>
           <Card>
             <CardHeader><h2 className="font-semibold">SEO</h2></CardHeader>
-            <CardBody className="space-y-4">
-              <Input label="Meta Title" value={formData.meta_title} onChange={(e) => handleInputChange('meta_title', e.target.value)} />
-              <div>
-                <label className="block text-sm font-medium mb-1">Meta Description</label>
-                <textarea value={formData.meta_description} onChange={(e) => handleInputChange('meta_description', e.target.value)}
-                  rows={3} className="w-full px-3 py-2 border rounded-lg text-sm" />
-              </div>
+            <CardBody>
+              <SEOFields
+                metaTitle={formData.meta_title}
+                metaDescription={formData.meta_description}
+                onMetaTitleChange={(value) => handleInputChange('meta_title', value)}
+                onMetaDescriptionChange={(value) => handleInputChange('meta_description', value)}
+                pageTitle={formData.title}
+                slug={formData.slug}
+                siteName="fiosites.com"
+                showPreview={true}
+                required={formData.status === 'published'}
+              />
             </CardBody>
           </Card>
         </div>

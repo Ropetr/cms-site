@@ -36,7 +36,15 @@ const columns = layout === 'grid-2' ? 2 : layout === 'grid-4' ? 4 : 3;
       {members.map((member: any) => (
         <div class="team-card">
           {member.photo ? (
-            <img src={member.photo} alt={member.name} class="member-photo" loading="lazy" />
+            <img 
+              src={member.photo} 
+              alt={member.name} 
+              class="member-photo" 
+              loading="lazy"
+              decoding="async"
+              width="180"
+              height="180"
+            />
           ) : (
             <div class="member-photo placeholder">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">

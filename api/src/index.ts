@@ -20,6 +20,7 @@ import { postsRoutes } from './routes/posts';
 import { categoriesRoutes } from './routes/categories';
 import { publicRoutes } from './routes/public';
 import { aiRoutes } from './routes/ai';
+import { seoRoutes } from './routes/seo';
 
 // Types
 export interface Env {
@@ -114,6 +115,9 @@ app.route('/api/contacts', contactsRoutes);
 app.route('/api/posts', postsRoutes);
 app.route('/api/categories', categoriesRoutes);
 app.route('/api/ai', aiRoutes);
+
+// SEO routes (sitemap.xml, robots.txt)
+app.route('', seoRoutes);
 
 // =============================================
 // ROTA DE IMAGENS OTIMIZADAS
@@ -276,4 +280,5 @@ app.onError((err, c) => {
 });
 
 export default app;
+
 

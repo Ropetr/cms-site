@@ -97,7 +97,7 @@ app.use('*', cors({
     return null;
   },
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
+  allowHeaders: ['Content-Type', 'Authorization', 'X-Site-Id'],
   credentials: true,
   maxAge: 86400,
 }));

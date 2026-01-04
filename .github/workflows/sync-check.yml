@@ -31,11 +31,11 @@ jobs:
 
       - name: Instalar dependencias API
         working-directory: api
-        run: npm ci
+        run: npm install
 
       - name: Instalar dependencias Admin
         working-directory: admin
-        run: npm ci
+        run: npm install
 
       - name: TypeCheck API
         working-directory: api

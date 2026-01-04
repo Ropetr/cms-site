@@ -96,7 +96,16 @@ const formatDate = (date: string) => {
 
         {post.featured_image && (
           <div class="max-w-5xl mx-auto mb-12">
-            <img src={post.featured_image} alt={post.title} class="w-full h-auto rounded-2xl shadow-lg" />
+            <img 
+              src={post.featured_image} 
+              alt={post.title} 
+              class="w-full h-auto rounded-2xl shadow-lg"
+              loading="eager"
+              fetchpriority="high"
+              decoding="async"
+              width="1200"
+              height="675"
+            />
           </div>
         )}
 
@@ -112,7 +121,15 @@ const formatDate = (date: string) => {
                 <a href={`/blog/${relatedPost.slug}`} class="group">
                   <div class="aspect-video bg-gray-100 rounded-xl overflow-hidden mb-4">
                     {relatedPost.featured_image ? (
-                      <img src={relatedPost.featured_image} alt={relatedPost.title} class="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      <img 
+                        src={relatedPost.featured_image} 
+                        alt={relatedPost.title} 
+                        class="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        loading="lazy"
+                        decoding="async"
+                        width="400"
+                        height="225"
+                      />
                     ) : (
                       <div class="w-full h-full flex items-center justify-center bg-gray-200">
                         <span class="text-gray-400">Sem imagem</span>

@@ -50,6 +50,10 @@ const variantClasses = {
                 alt={item.title || `Slide ${index + 1}`}
                 class="w-full h-full object-cover"
                 loading={index === 0 ? 'eager' : 'lazy'}
+                fetchpriority={index === 0 ? 'high' : 'auto'}
+                decoding="async"
+                width="1200"
+                height="675"
               />
               {(item.title || item.description) && (
                 <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end">

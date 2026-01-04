@@ -30,7 +30,14 @@ const columns = layout === 'grid-2' ? 2 : layout === 'grid-4' ? 4 : 3;
       {images.map((image: any, index: number) => (
         <div class="gallery-item">
           <a href={image.url} data-lightbox="gallery" data-caption={image.caption}>
-            <img src={image.url} alt={image.alt || `Imagem ${index + 1}`} loading="lazy" />
+            <img 
+              src={image.url} 
+              alt={image.alt || `Imagem ${index + 1}`} 
+              loading="lazy"
+              decoding="async"
+              width="400"
+              height="400"
+            />
             {image.caption && <div class="caption">{image.caption}</div>}
           </a>
         </div>

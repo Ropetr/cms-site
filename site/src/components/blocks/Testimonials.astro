@@ -49,7 +49,15 @@ const items = content.items || [];
           
           <div class="testimonial-author">
             {item.avatar && (
-              <img src={item.avatar} alt={item.name} class="author-avatar" />
+              <img 
+                src={item.avatar} 
+                alt={item.name} 
+                class="author-avatar"
+                loading="lazy"
+                decoding="async"
+                width="48"
+                height="48"
+              />
             )}
             <div class="author-info">
               <p class="author-name">{item.name}</p>

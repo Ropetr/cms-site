@@ -1,5 +1,6 @@
 import { Menu, Bell, Search } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import SiteSelector from './SiteSelector'
 
 export default function Header({ onMenuClick }) {
   const { user } = useAuth()
@@ -15,6 +16,9 @@ export default function Header({ onMenuClick }) {
           >
             <Menu className="w-5 h-5" />
           </button>
+          
+          {/* Site Selector */}
+          <SiteSelector />
           
           {/* Search */}
           <div className="hidden md:flex items-center">

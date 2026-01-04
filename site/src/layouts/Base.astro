@@ -2,15 +2,21 @@
 import Header from '../components/common/Header.astro';
 import Footer from '../components/common/Footer.astro';
 import WhatsAppFloat from '../components/common/WhatsAppFloat.astro';
+import SchemaOrg from '../components/seo/SchemaOrg.astro';
 import { getSettings, getTheme, getNavigation } from '../lib/api';
 
 export interface Props {
   title?: string;
   description?: string;
   ogImage?: string;
+  schema?: {
+    type: 'organization' | 'website' | 'breadcrumb' | 'blogPosting' | 'localBusiness' | 'product' | 'faq';
+    data?: any;
+  };
+  breadcrumbs?: Array<{ name: string; url?: string }>;
 }
 
-const { title, description, ogImage } = Astro.props;
+const { title, description, ogImage, schema, breadcrumbs } = Astro.props;
 
 let settings: any = {};
 let theme: any = {};
@@ -30,6 +36,7 @@ const pageTitle = title ? `${title} | ${siteName}` : `${siteName} ${siteTagline 
 const pageDescription = description || settings.default_meta_description || '';
 const logoUrl = settings.logo_url || '/logo.png';
 const whatsapp = settings.whatsapp || '';
+const siteUrl = settings.site_url || 'https://cms-site.pages.dev';
 
 // Theme tokens
 let tokens: any = {};
@@ -41,6 +48,9 @@ const primaryColor = tokens.primary_color || theme.primary_color || '#AA000E';
 const secondaryColor = tokens.secondary_color || theme.secondary_color || '#1a1a1a';
 const headingFont = tokens.heading_font || theme.heading_font || 'Inter';
 const bodyFont = tokens.body_font || theme.body_font || 'Inter';
+
+// Canonical URL
+const canonicalUrl = new URL(Astro.url.pathname, siteUrl).href;
 ---
 
 <!DOCTYPE html>
@@ -51,24 +61,75 @@ const bodyFont = tokens.body_font || theme.body_font || 'Inter';
   <meta name="description" content={pageDescription} />
   <title>{pageTitle}</title>
   
+  <!-- Canonical -->
+  <link rel="canonical" href={canonicalUrl} />
+  
   <!-- Favicon -->
   <link rel="icon" type="image/png" href={settings.favicon_url || '/favicon.png'} />
+  <link rel="apple-touch-icon" href={settings.favicon_url || '/favicon.png'} />
   
   <!-- Open Graph -->
   <meta property="og:title" content={pageTitle} />
   <meta property="og:description" content={pageDescription} />
   <meta property="og:type" content="website" />
-  {ogImage && <meta property="og:image" content={ogImage} />}
+  <meta property="og:url" content={canonicalUrl} />
+  <meta property="og:image" content={ogImage || settings.og_image || logoUrl} />
+  <meta property="og:site_name" content={siteName} />
+  <meta property="og:locale" content="pt_BR" />
   
-  <!-- Google Fonts -->
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content={pageTitle} />
+  <meta name="twitter:description" content={pageDescription} />
+  <meta name="twitter:image" content={ogImage || settings.og_image || logoUrl} />
+  
+  <!-- Additional Meta -->
+  <meta name="robots" content="index, follow" />
+  <meta name="author" content={siteName} />
+  <meta name="theme-color" content={primaryColor} />
+  
+  <!-- Preconnect to external domains -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href={`https://fonts.googleapis.com/css2?family=${headingFont}:wght@400;500;600;700&family=${bodyFont}:wght@400;500;600&display=swap`} rel="stylesheet" />
   
-  <!-- Theme CSS Variables -->
+  <!-- Google Fonts -->
+  <link href={`https://fonts.googleapis.com/css2?family=${headingFont.replace(' ', '+')}:wght@400;500;600;700&family=${bodyFont.replace(' ', '+')}:wght@400;500;600&display=swap`} rel="stylesheet" />
+  
+  <!-- Schema.org - Organization (sempre presente) -->
+  <SchemaOrg type="organization" settings={settings} />
+  
+  <!-- Schema.org - WebSite (sempre presente) -->
+  <SchemaOrg type="website" settings={settings} />
+  
+  <!-- Schema.org - LocalBusiness (para empresas locais) -->
+  {settings.is_local_business && (
+    <SchemaOrg type="localBusiness" settings={settings} />
+  )}
+  
+  <!-- Schema.org - Breadcrumb (se fornecido) -->
+  {breadcrumbs && breadcrumbs.length > 0 && (
+    <SchemaOrg type="breadcrumb" data={{ items: breadcrumbs }} settings={settings} />
+  )}
+  
+  <!-- Schema.org - Custom (se fornecido) -->
+  {schema && (
+    <SchemaOrg type={schema.type} data={schema.data} settings={settings} />
+  )}
+  
+  <!-- CSS Variables -->
   <style define:vars={{ primaryColor, secondaryColor, headingFont, bodyFont }}>
     :root {
-      --color-primary: var(--primaryColor);
+      --color-primary-50: color-mix(in srgb, var(--primaryColor) 10%, white);
+      --color-primary-100: color-mix(in srgb, var(--primaryColor) 20%, white);
+      --color-primary-200: color-mix(in srgb, var(--primaryColor) 30%, white);
+      --color-primary-300: color-mix(in srgb, var(--primaryColor) 50%, white);
+      --color-primary-400: color-mix(in srgb, var(--primaryColor) 70%, white);
+      --color-primary-500: var(--primaryColor);
+      --color-primary-600: var(--primaryColor);
+      --color-primary-700: color-mix(in srgb, var(--primaryColor) 80%, black);
+      --color-primary-800: color-mix(in srgb, var(--primaryColor) 60%, black);
+      --color-primary-900: color-mix(in srgb, var(--primaryColor) 40%, black);
+      
       --color-secondary: var(--secondaryColor);
       --font-heading: var(--headingFont), system-ui, sans-serif;
       --font-body: var(--bodyFont), system-ui, sans-serif;
@@ -83,15 +144,30 @@ const bodyFont = tokens.body_font || theme.body_font || 'Inter';
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col bg-white text-gray-900">
-  <Header logo={logoUrl} siteName={siteName} navigation={navigation} />
+<body class="min-h-screen flex flex-col bg-gray-50">
+  <Header 
+    siteName={siteName}
+    logoUrl={logoUrl}
+    navigation={navigation}
+    primaryColor={primaryColor}
+  />
   
   <main class="flex-1">
     <slot />
   </main>
   
-  <Footer settings={settings} />
+  <Footer 
+    settings={settings}
+    navigation={navigation}
+    primaryColor={primaryColor}
+  />
   
-  {whatsapp && <WhatsAppFloat number={whatsapp} />}
+  <!-- WhatsApp Float -->
+  {whatsapp && (
+    <WhatsAppFloat 
+      phone={whatsapp} 
+      message={`Olá! Vim pelo site ${siteName} e gostaria de mais informações.`}
+    />
+  )}
 </body>
 </html>

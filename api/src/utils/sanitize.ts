@@ -166,8 +166,38 @@ const removeComments = (html: string): string => {
 };
 
 /**
+ * Final safety check - if any dangerous patterns remain after sanitization,
+ * escape the entire content to prevent XSS
+ */
+const containsDangerousPatterns = (html: string): boolean => {
+  const lowerHtml = html.toLowerCase();
+  
+  for (const tag of DANGEROUS_TAGS) {
+    if (new RegExp(`<\\s*${tag}\\b`, 'i').test(html)) {
+      return true;
+    }
+  }
+  
+  if (/<!--/.test(html)) {
+    return true;
+  }
+  
+  if (/javascript\s*:/i.test(html) || /vbscript\s*:/i.test(html)) {
+    return true;
+  }
+  
+  if (/\bon\w+\s*=/i.test(html)) {
+    return true;
+  }
+  
+  return false;
+};
+
+/**
  * Sanitize custom HTML content
  * Removes scripts, dangerous attributes, and potentially harmful content
+ * Uses a "kill switch" approach: if dangerous patterns remain after sanitization,
+ * the entire content is escaped to prevent XSS
  */
 export const sanitizeHtml = (html: string): string => {
   if (!html || typeof html !== 'string') {
@@ -182,6 +212,10 @@ export const sanitizeHtml = (html: string): string => {
   result = removeDangerousProtocols(result);
   
   result = result.trim();
+  
+  if (containsDangerousPatterns(result)) {
+    return escapeHtml(result);
+  }
   
   return result;
 };

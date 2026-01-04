@@ -1,0 +1,225 @@
+/**
+ * HTML Sanitization Utilities
+ * Removes potentially dangerous content from custom HTML blocks
+ */
+
+const DANGEROUS_TAGS = [
+  'script',
+  'iframe',
+  'object',
+  'embed',
+  'form',
+  'input',
+  'button',
+  'select',
+  'textarea',
+  'meta',
+  'link',
+  'base',
+  'applet',
+];
+
+const DANGEROUS_ATTRIBUTES = [
+  'onclick',
+  'ondblclick',
+  'onmousedown',
+  'onmouseup',
+  'onmouseover',
+  'onmousemove',
+  'onmouseout',
+  'onmouseenter',
+  'onmouseleave',
+  'onkeydown',
+  'onkeypress',
+  'onkeyup',
+  'onfocus',
+  'onblur',
+  'onchange',
+  'onsubmit',
+  'onreset',
+  'onload',
+  'onunload',
+  'onerror',
+  'onabort',
+  'onscroll',
+  'onresize',
+  'ondrag',
+  'ondrop',
+  'onpaste',
+  'oncopy',
+  'oncut',
+  'oncontextmenu',
+  'formaction',
+  'xlink:href',
+  'data-',
+];
+
+const DANGEROUS_PROTOCOLS = [
+  'javascript:',
+  'vbscript:',
+  'data:text/html',
+  'data:application',
+];
+
+/**
+ * Remove dangerous tags from HTML
+ */
+const removeDangerousTags = (html: string): string => {
+  let result = html;
+  
+  for (const tag of DANGEROUS_TAGS) {
+    const openTagRegex = new RegExp(`<${tag}[^>]*>`, 'gi');
+    const closeTagRegex = new RegExp(`</${tag}>`, 'gi');
+    const selfClosingRegex = new RegExp(`<${tag}[^>]*/?>`, 'gi');
+    
+    result = result.replace(openTagRegex, '');
+    result = result.replace(closeTagRegex, '');
+    result = result.replace(selfClosingRegex, '');
+  }
+  
+  const scriptContentRegex = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi;
+  result = result.replace(scriptContentRegex, '');
+  
+  return result;
+};
+
+/**
+ * Remove dangerous attributes from HTML
+ */
+const removeDangerousAttributes = (html: string): string => {
+  let result = html;
+  
+  for (const attr of DANGEROUS_ATTRIBUTES) {
+    if (attr.endsWith('-')) {
+      const attrRegex = new RegExp(`\\s${attr}[a-z-]*\\s*=\\s*["'][^"']*["']`, 'gi');
+      result = result.replace(attrRegex, '');
+    } else {
+      const attrRegex = new RegExp(`\\s${attr}\\s*=\\s*["'][^"']*["']`, 'gi');
+      result = result.replace(attrRegex, '');
+    }
+  }
+  
+  return result;
+};
+
+/**
+ * Remove dangerous protocols from href/src attributes
+ */
+const removeDangerousProtocols = (html: string): string => {
+  let result = html;
+  
+  for (const protocol of DANGEROUS_PROTOCOLS) {
+    const hrefRegex = new RegExp(`href\\s*=\\s*["']${protocol}[^"']*["']`, 'gi');
+    const srcRegex = new RegExp(`src\\s*=\\s*["']${protocol}[^"']*["']`, 'gi');
+    
+    result = result.replace(hrefRegex, 'href="#"');
+    result = result.replace(srcRegex, 'src=""');
+  }
+  
+  return result;
+};
+
+/**
+ * Remove HTML comments (can contain IE conditional comments with scripts)
+ */
+const removeComments = (html: string): string => {
+  return html.replace(/<!--[\s\S]*?-->/g, '');
+};
+
+/**
+ * Sanitize custom HTML content
+ * Removes scripts, dangerous attributes, and potentially harmful content
+ */
+export const sanitizeHtml = (html: string): string => {
+  if (!html || typeof html !== 'string') {
+    return '';
+  }
+  
+  let result = html;
+  
+  result = removeComments(result);
+  result = removeDangerousTags(result);
+  result = removeDangerousAttributes(result);
+  result = removeDangerousProtocols(result);
+  
+  result = result.trim();
+  
+  return result;
+};
+
+/**
+ * Check if HTML contains potentially dangerous content
+ * Returns list of warnings
+ */
+export const checkHtmlSecurity = (html: string): string[] => {
+  const warnings: string[] = [];
+  
+  if (!html || typeof html !== 'string') {
+    return warnings;
+  }
+  
+  for (const tag of DANGEROUS_TAGS) {
+    const regex = new RegExp(`<${tag}[\\s>]`, 'gi');
+    if (regex.test(html)) {
+      warnings.push(`Tag <${tag}> detectada e será removida`);
+    }
+  }
+  
+  for (const attr of DANGEROUS_ATTRIBUTES) {
+    if (attr.endsWith('-')) {
+      const regex = new RegExp(`\\s${attr}[a-z-]*\\s*=`, 'gi');
+      if (regex.test(html)) {
+        warnings.push(`Atributo ${attr}* detectado e será removido`);
+      }
+    } else {
+      const regex = new RegExp(`\\s${attr}\\s*=`, 'gi');
+      if (regex.test(html)) {
+        warnings.push(`Atributo ${attr} detectado e será removido`);
+      }
+    }
+  }
+  
+  for (const protocol of DANGEROUS_PROTOCOLS) {
+    if (html.toLowerCase().includes(protocol)) {
+      warnings.push(`Protocolo ${protocol} detectado e será removido`);
+    }
+  }
+  
+  return warnings;
+};
+
+/**
+ * Sanitize content object (for page sections)
+ * Specifically handles custom_html blocks
+ */
+export const sanitizeBlockContent = (content: any, blockType: string): any => {
+  if (!content) return content;
+  
+  if (blockType === 'custom_html' && content.html) {
+    return {
+      ...content,
+      html: sanitizeHtml(content.html),
+    };
+  }
+  
+  return content;
+};
+
+/**
+ * Escape HTML entities for safe display
+ */
+export const escapeHtml = (text: string): string => {
+  if (!text || typeof text !== 'string') {
+    return '';
+  }
+  
+  const htmlEntities: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  };
+  
+  return text.replace(/[&<>"']/g, (char) => htmlEntities[char] || char);
+};

@@ -214,44 +214,15 @@ app.get('/images/*', async (c) => {
   if (height) finalHeight = parseInt(height);
   if (quality) finalQuality = parseInt(quality);
   
-  // Se não há redimensionamento, retornar original
-  if (!finalWidth && !finalHeight) {
-    const headers = new Headers();
-    headers.set('Content-Type', object.httpMetadata?.contentType || 'image/jpeg');
-    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-    headers.set('CDN-Cache-Control', 'public, max-age=31536000');
-    
-    return new Response(object.body, { headers });
-  }
+  // Servir imagem original com headers de cache
+  // Nota: Cloudflare Image Resizing via /cdn-cgi/image/ não funciona em domínios workers.dev
+  // Por isso servimos a imagem original diretamente
+  const headers = new Headers();
+  headers.set('Content-Type', object.httpMetadata?.contentType || 'image/jpeg');
+  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+  headers.set('CDN-Cache-Control', 'public, max-age=31536000');
   
-  // Usar Cloudflare Image Resizing
-  // Construir URL de origem
-  const originUrl = `${url.origin}/raw/${filename}`;
-  
-  // Construir parâmetros de transformação
-  const transformParams: string[] = [];
-  
-  if (finalWidth) transformParams.push(`width=${finalWidth}`);
-  if (finalHeight) transformParams.push(`height=${finalHeight}`);
-  transformParams.push(`quality=${finalQuality}`);
-  transformParams.push(`fit=${fit}`);
-  
-  // Formato: auto detecta WebP/AVIF baseado no Accept header
-  if (format === 'auto') {
-    transformParams.push('format=auto');
-  } else if (format !== 'original') {
-    transformParams.push(`format=${format}`);
-  }
-  
-  // Gravity baseado no ponto focal
-  // Cloudflare usa gravity como coordenadas relativas
-  transformParams.push(`gravity=${focalX}x${focalY}`);
-  
-  // URL final com Image Resizing
-  const transformUrl = `/cdn-cgi/image/${transformParams.join(',')}/${originUrl}`;
-  
-  // Redirecionar para a URL transformada
-  return c.redirect(transformUrl, 302);
+  return new Response(object.body, { headers });
 });
 
 // Rota raw para servir imagem original (usado pelo Image Resizing)

@@ -1,32 +1,21 @@
 /**
  * Rotas de Posts (Blog)
+ * Multi-tenant: todas as queries filtram por site_id
  */
 
 import { Hono } from 'hono';
-import { verify } from 'hono/jwt';
-import { getCookie } from 'hono/cookie';
 import type { Env } from '../index';
+import { tenantMiddleware, getSiteId } from '../middleware/tenant';
 
 export const postsRoutes = new Hono<{ Bindings: Env }>();
 
-// Middleware de autenticação
-const authMiddleware = async (c: any, next: any) => {
-  try {
-    const token = getCookie(c, 'auth_token') || c.req.header('Authorization')?.replace('Bearer ', '');
-    if (!token) return c.json({ error: 'Não autenticado' }, 401);
-    const payload = await verify(token, c.env.JWT_SECRET);
-    c.set('user', payload);
-    await next();
-  } catch {
-    return c.json({ error: 'Token inválido' }, 401);
-  }
-};
-
-postsRoutes.use('*', authMiddleware);
+// Aplicar middleware de tenant em todas as rotas
+postsRoutes.use('*', tenantMiddleware);
 
 // Listar posts
 postsRoutes.get('/', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const status = c.req.query('status');
     const category = c.req.query('category');
     const search = c.req.query('search');
@@ -38,9 +27,9 @@ postsRoutes.get('/', async (c) => {
       FROM posts p
       LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN users u ON p.author_id = u.id
-      WHERE 1=1
+      WHERE p.site_id = ?
     `;
-    const params: any[] = [];
+    const params: any[] = [siteId];
 
     if (status) {
       query += ' AND p.status = ?';
@@ -61,8 +50,8 @@ postsRoutes.get('/', async (c) => {
     const result = await c.env.DB.prepare(query).bind(...params).all();
 
     // Contar total
-    let countQuery = 'SELECT COUNT(*) as total FROM posts WHERE 1=1';
-    const countParams: any[] = [];
+    let countQuery = 'SELECT COUNT(*) as total FROM posts WHERE site_id = ?';
+    const countParams: any[] = [siteId];
     if (status) { countQuery += ' AND status = ?'; countParams.push(status); }
     if (category) { countQuery += ' AND category_id = ?'; countParams.push(category); }
     const countResult = await c.env.DB.prepare(countQuery).bind(...countParams).first();
@@ -81,14 +70,15 @@ postsRoutes.get('/', async (c) => {
 // Buscar post por ID
 postsRoutes.get('/:id', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const id = c.req.param('id');
     const result = await c.env.DB.prepare(`
       SELECT p.*, c.name as category_name, u.name as author_name
       FROM posts p
       LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN users u ON p.author_id = u.id
-      WHERE p.id = ?
-    `).bind(id).first();
+      WHERE p.id = ? AND p.site_id = ?
+    `).bind(id, siteId).first();
 
     if (!result) return c.json({ error: 'Post não encontrado' }, 404);
     return c.json({ success: true, data: result });
@@ -100,6 +90,7 @@ postsRoutes.get('/:id', async (c) => {
 // Criar post
 postsRoutes.post('/', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const user = c.get('user');
     const data = await c.req.json();
     const { title, slug, excerpt, content, featured_image, category_id, status, is_featured, meta_title, meta_description } = data;
@@ -108,18 +99,18 @@ postsRoutes.post('/', async (c) => {
       return c.json({ error: 'Título e slug são obrigatórios' }, 400);
     }
 
-    // Verificar slug único
-    const existing = await c.env.DB.prepare('SELECT id FROM posts WHERE slug = ?').bind(slug).first();
+    // Verificar slug único no mesmo site
+    const existing = await c.env.DB.prepare('SELECT id FROM posts WHERE slug = ? AND site_id = ?').bind(slug, siteId).first();
     if (existing) return c.json({ error: 'Slug já existe' }, 400);
 
     const id = `post_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
     const published_at = status === 'published' ? new Date().toISOString() : null;
 
     await c.env.DB.prepare(`
-      INSERT INTO posts (id, title, slug, excerpt, content, featured_image, category_id, author_id, status, is_featured, meta_title, meta_description, published_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO posts (id, site_id, title, slug, excerpt, content, featured_image, category_id, author_id, status, is_featured, meta_title, meta_description, published_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
-      id, title, slug, excerpt || null, content || null, featured_image || null,
+      id, siteId, title, slug, excerpt || null, content || null, featured_image || null,
       category_id || null, user.sub, status || 'draft', is_featured ? 1 : 0,
       meta_title || null, meta_description || null, published_at
     ).run();
@@ -134,17 +125,18 @@ postsRoutes.post('/', async (c) => {
 // Atualizar post
 postsRoutes.put('/:id', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const id = c.req.param('id');
     const data = await c.req.json();
 
-    const existing = await c.env.DB.prepare('SELECT * FROM posts WHERE id = ?').bind(id).first();
+    const existing = await c.env.DB.prepare('SELECT * FROM posts WHERE id = ? AND site_id = ?').bind(id, siteId).first();
     if (!existing) return c.json({ error: 'Post não encontrado' }, 404);
 
     const { title, slug, excerpt, content, featured_image, category_id, status, is_featured, meta_title, meta_description } = data;
 
-    // Verificar slug único se mudou
+    // Verificar slug único se mudou no mesmo site
     if (slug && slug !== existing.slug) {
-      const slugExists = await c.env.DB.prepare('SELECT id FROM posts WHERE slug = ? AND id != ?').bind(slug, id).first();
+      const slugExists = await c.env.DB.prepare('SELECT id FROM posts WHERE slug = ? AND id != ? AND site_id = ?').bind(slug, id, siteId).first();
       if (slugExists) return c.json({ error: 'Slug já existe' }, 400);
     }
 
@@ -168,11 +160,11 @@ postsRoutes.put('/:id', async (c) => {
         meta_description = ?,
         published_at = ?,
         updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
+      WHERE id = ? AND site_id = ?
     `).bind(
       title, slug, excerpt || null, content || null, featured_image || null,
       category_id || null, status, is_featured ? 1 : 0,
-      meta_title || null, meta_description || null, published_at, id
+      meta_title || null, meta_description || null, published_at, id, siteId
     ).run();
 
     return c.json({ success: true });
@@ -185,8 +177,9 @@ postsRoutes.put('/:id', async (c) => {
 // Excluir post
 postsRoutes.delete('/:id', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const id = c.req.param('id');
-    await c.env.DB.prepare('DELETE FROM posts WHERE id = ?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM posts WHERE id = ? AND site_id = ?').bind(id, siteId).run();
     return c.json({ success: true });
   } catch (error) {
     return c.json({ error: 'Erro ao excluir post' }, 500);

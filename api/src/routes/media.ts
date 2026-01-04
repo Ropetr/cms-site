@@ -1,32 +1,16 @@
 /**
  * Rotas de Mídia (Upload de Imagens)
+ * Multi-tenant: todas as queries filtram por site_id
  */
 
 import { Hono } from 'hono';
-import { verify } from 'hono/jwt';
-import { getCookie } from 'hono/cookie';
 import type { Env } from '../index';
+import { tenantMiddleware, getSiteId } from '../middleware/tenant';
 
 export const mediaRoutes = new Hono<{ Bindings: Env }>();
 
-// Middleware de autenticação
-const authMiddleware = async (c: any, next: any) => {
-  try {
-    const token = getCookie(c, 'auth_token') || c.req.header('Authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return c.json({ error: 'Não autenticado' }, 401);
-    }
-    
-    const payload = await verify(token, c.env.JWT_SECRET);
-    c.set('user', payload);
-    await next();
-  } catch {
-    return c.json({ error: 'Token inválido' }, 401);
-  }
-};
-
-mediaRoutes.use('*', authMiddleware);
+// Aplicar middleware de tenant em todas as rotas
+mediaRoutes.use('*', tenantMiddleware);
 
 // Tipos de arquivo permitidos
 const ALLOWED_TYPES: Record<string, string> = {
@@ -43,6 +27,7 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 // Listar mídia
 mediaRoutes.get('/', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const folder = c.req.query('folder');
     const type = c.req.query('type');
     const search = c.req.query('search');
@@ -50,9 +35,9 @@ mediaRoutes.get('/', async (c) => {
     const limit = parseInt(c.req.query('limit') || '20');
     const offset = (page - 1) * limit;
     
-    let query = 'SELECT * FROM media WHERE 1=1';
-    let countQuery = 'SELECT COUNT(*) as total FROM media WHERE 1=1';
-    const params: any[] = [];
+    let query = 'SELECT * FROM media WHERE site_id = ?';
+    let countQuery = 'SELECT COUNT(*) as total FROM media WHERE site_id = ?';
+    const params: any[] = [siteId];
     
     if (folder) {
       query += ' AND folder = ?';
@@ -96,11 +81,12 @@ mediaRoutes.get('/', async (c) => {
 // Buscar mídia por ID
 mediaRoutes.get('/:id', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const id = c.req.param('id');
     
     const media = await c.env.DB.prepare(
-      'SELECT * FROM media WHERE id = ?'
-    ).bind(id).first();
+      'SELECT * FROM media WHERE id = ? AND site_id = ?'
+    ).bind(id, siteId).first();
     
     if (!media) {
       return c.json({ error: 'Mídia não encontrada' }, 404);
@@ -116,6 +102,7 @@ mediaRoutes.get('/:id', async (c) => {
 // Upload de arquivo
 mediaRoutes.post('/upload', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const user = c.get('user');
     const formData = await c.req.formData();
     const file = formData.get('file') as File;
@@ -169,11 +156,11 @@ mediaRoutes.post('/upload', async (c) => {
     
     await c.env.DB.prepare(`
       INSERT INTO media (
-        id, original_name, file_name, file_type, mime_type, file_size,
+        id, site_id, original_name, file_name, file_type, mime_type, file_size,
         url, alt_text, caption, folder, uploaded_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
-      id, file.name, fileName, fileType, file.type, file.size,
+      id, siteId, file.name, fileName, fileType, file.type, file.size,
       url, altText, caption, folder, user.sub
     ).run();
     
@@ -207,13 +194,14 @@ mediaRoutes.post('/upload', async (c) => {
 // Atualizar metadados
 mediaRoutes.put('/:id', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const id = c.req.param('id');
     const data = await c.req.json();
     const { alt_text, caption, folder } = data;
     
     const existing = await c.env.DB.prepare(
-      'SELECT id FROM media WHERE id = ?'
-    ).bind(id).first();
+      'SELECT id FROM media WHERE id = ? AND site_id = ?'
+    ).bind(id, siteId).first();
     
     if (!existing) {
       return c.json({ error: 'Mídia não encontrada' }, 404);
@@ -224,8 +212,8 @@ mediaRoutes.put('/:id', async (c) => {
         alt_text = COALESCE(?, alt_text),
         caption = COALESCE(?, caption),
         folder = COALESCE(?, folder)
-      WHERE id = ?
-    `).bind(alt_text, caption, folder, id).run();
+      WHERE id = ? AND site_id = ?
+    `).bind(alt_text, caption, folder, id, siteId).run();
     
     return c.json({ success: true });
   } catch (error) {
@@ -237,11 +225,12 @@ mediaRoutes.put('/:id', async (c) => {
 // Deletar mídia
 mediaRoutes.delete('/:id', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const id = c.req.param('id');
     
     const media = await c.env.DB.prepare(
-      'SELECT file_name FROM media WHERE id = ?'
-    ).bind(id).first();
+      'SELECT file_name FROM media WHERE id = ? AND site_id = ?'
+    ).bind(id, siteId).first();
     
     if (!media) {
       return c.json({ error: 'Mídia não encontrada' }, 404);
@@ -251,7 +240,7 @@ mediaRoutes.delete('/:id', async (c) => {
     await c.env.MEDIA.delete(media.file_name as string);
     
     // Deletar do banco
-    await c.env.DB.prepare('DELETE FROM media WHERE id = ?').bind(id).run();
+    await c.env.DB.prepare('DELETE FROM media WHERE id = ? AND site_id = ?').bind(id, siteId).run();
     
     return c.json({ success: true });
   } catch (error) {
@@ -263,9 +252,10 @@ mediaRoutes.delete('/:id', async (c) => {
 // Listar pastas
 mediaRoutes.get('/folders/list', async (c) => {
   try {
+    const siteId = getSiteId(c);
     const result = await c.env.DB.prepare(
-      'SELECT DISTINCT folder, COUNT(*) as count FROM media GROUP BY folder ORDER BY folder ASC'
-    ).all();
+      'SELECT DISTINCT folder, COUNT(*) as count FROM media WHERE site_id = ? GROUP BY folder ORDER BY folder ASC'
+    ).bind(siteId).all();
     
     return c.json({ success: true, data: result.results });
   } catch (error) {

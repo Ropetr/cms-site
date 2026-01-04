@@ -63,22 +63,28 @@ const DANGEROUS_PROTOCOLS = [
 
 /**
  * Remove dangerous tags from HTML
+ * Uses iterative approach to handle nested/malformed tags
  */
 const removeDangerousTags = (html: string): string => {
   let result = html;
+  let previousResult = '';
   
-  for (const tag of DANGEROUS_TAGS) {
-    const openTagRegex = new RegExp(`<${tag}[^>]*>`, 'gi');
-    const closeTagRegex = new RegExp(`</${tag}>`, 'gi');
-    const selfClosingRegex = new RegExp(`<${tag}[^>]*/?>`, 'gi');
+  while (result !== previousResult) {
+    previousResult = result;
     
-    result = result.replace(openTagRegex, '');
-    result = result.replace(closeTagRegex, '');
-    result = result.replace(selfClosingRegex, '');
+    for (const tag of DANGEROUS_TAGS) {
+      const openTagRegex = new RegExp(`<${tag}\\s*[^>]*>`, 'gi');
+      const closeTagRegex = new RegExp(`<\\s*/\\s*${tag}\\s*>`, 'gi');
+      const selfClosingRegex = new RegExp(`<${tag}\\s*[^>]*/\\s*>`, 'gi');
+      
+      result = result.replace(openTagRegex, '');
+      result = result.replace(closeTagRegex, '');
+      result = result.replace(selfClosingRegex, '');
+    }
+    
+    const scriptContentRegex = /<script\b[^<]*(?:(?!<\s*\/\s*script\s*>)<[^<]*)*<\s*\/\s*script\s*>/gi;
+    result = result.replace(scriptContentRegex, '');
   }
-  
-  const scriptContentRegex = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi;
-  result = result.replace(scriptContentRegex, '');
   
   return result;
 };
@@ -121,9 +127,18 @@ const removeDangerousProtocols = (html: string): string => {
 
 /**
  * Remove HTML comments (can contain IE conditional comments with scripts)
+ * Uses iterative approach to handle nested comments
  */
 const removeComments = (html: string): string => {
-  return html.replace(/<!--[\s\S]*?-->/g, '');
+  let result = html;
+  let previousResult = '';
+  
+  while (result !== previousResult) {
+    previousResult = result;
+    result = result.replace(/<!--[\s\S]*?-->/g, '');
+  }
+  
+  return result;
 };
 
 /**

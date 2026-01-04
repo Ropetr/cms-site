@@ -97,15 +97,6 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* Demo credentials */}
-            <div className="mt-6 pt-4 border-t border-gray-200">
-              <p className="text-xs text-gray-500 text-center">
-                Credenciais de teste:
-              </p>
-              <p className="text-xs text-gray-400 text-center mt-1">
-                admin@cmssite.com / Planac@Admin2026
-              </p>
-            </div>
           </CardBody>
         </Card>
 

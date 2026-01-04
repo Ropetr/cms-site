@@ -5,7 +5,7 @@ User-agent: *
 Allow: /
 
 # Sitemap
-Sitemap: https://fio-landingpage.pages.dev/sitemap.xml
+Sitemap: https://fiosites.com/sitemap.xml
 
 # Crawl-delay (opcional, respeitado por alguns bots)
 Crawl-delay: 1

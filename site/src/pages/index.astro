@@ -3,11 +3,13 @@ import Base from '../layouts/Base.astro';
 import BlockRenderer from '../components/blocks/BlockRenderer.astro';
 import { getPage } from '../lib/api';
 
+const siteId = Astro.locals.siteId;
+
 let page: any = null;
 let sections: any[] = [];
 
 try {
-  const data = await getPage('home');
+  const data = await getPage('home', siteId);
   page = data.page || data;
   sections = data.sections || [];
 } catch (e) {

@@ -3,23 +3,24 @@
  * Blog Index Page - Lista de posts
  */
 import Base from '../../layouts/Base.astro'
+import { getSettings, getPosts, getCategories } from '../../lib/api'
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'https://cms-site-api.planacacabamentos.workers.dev'
+const siteId = Astro.locals.siteId
 
 let settings: any = {}
 let posts: any[] = []
 let categories: any[] = []
 
 try {
-  const [settingsRes, postsRes, categoriesRes] = await Promise.all([
-    fetch(`${API_URL}/api/public/settings`),
-    fetch(`${API_URL}/api/public/posts?limit=12`),
-    fetch(`${API_URL}/api/public/categories`),
+  const [settingsData, postsData, categoriesData] = await Promise.all([
+    getSettings(siteId),
+    getPosts(siteId),
+    getCategories(siteId),
   ])
 
-  if (settingsRes.ok) settings = (await settingsRes.json()).data || {}
-  if (postsRes.ok) posts = (await postsRes.json()).data || []
-  if (categoriesRes.ok) categories = (await categoriesRes.json()).data || []
+  settings = settingsData || {}
+  posts = postsData || []
+  categories = categoriesData || []
 } catch (error) {
   console.error('Error fetching blog data:', error)
 }

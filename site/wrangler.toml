@@ -1,0 +1,20 @@
+# ==========================================
+# CMS Site - Cloudflare Worker (SSR)
+# ==========================================
+
+name = "cms-site-ssr"
+main = "dist/_worker.js"
+compatibility_date = "2024-01-01"
+
+# Assets configuration for Astro SSR
+[assets]
+directory = "dist"
+
+# KV for caching tenant data and HTML
+[[kv_namespaces]]
+binding = "CACHE"
+id = "bcdc2b754e8049d38da38f0e004c7104"
+
+# Environment variables
+[vars]
+API_URL = "https://cms-site-api.planacacabamentos.workers.dev"

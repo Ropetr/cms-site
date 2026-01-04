@@ -485,3 +485,57 @@ publicRoutes.get('/categories', async (c) => {
     return c.json({ error: 'Erro ao listar categorias' }, 500);
   }
 });
+
+// ==================== TENANT RESOLUTION ====================
+
+// Resolver tenant por host (domínio ou subdomínio)
+publicRoutes.get('/resolve-tenant', async (c) => {
+  try {
+    const host = c.req.query('host');
+    
+    if (!host) {
+      return c.json({ error: 'Host parameter is required' }, 400);
+    }
+    
+    // Remove port if present
+    const cleanHost = host.split(':')[0];
+    
+    // Try to find site by custom domain first
+    let site = await c.env.DB.prepare(`
+      SELECT id, name, slug, domain, subdomain, organization_id
+      FROM sites
+      WHERE domain = ? AND status = 'active'
+    `).bind(cleanHost).first();
+    
+    // If not found by domain, try subdomain pattern (e.g., cliente.fiosites.com)
+    if (!site) {
+      const parts = cleanHost.split('.');
+      if (parts.length >= 3) {
+        const subdomain = parts[0];
+        site = await c.env.DB.prepare(`
+          SELECT id, name, slug, domain, subdomain, organization_id
+          FROM sites
+          WHERE subdomain = ? AND status = 'active'
+        `).bind(subdomain).first();
+      }
+    }
+    
+    // If still not found, return default site (id = 1)
+    if (!site) {
+      site = await c.env.DB.prepare(`
+        SELECT id, name, slug, domain, subdomain, organization_id
+        FROM sites
+        WHERE id = 1
+      `).first();
+    }
+    
+    if (!site) {
+      return c.json({ error: 'Site not found' }, 404);
+    }
+    
+    return c.json({ success: true, data: site });
+  } catch (error) {
+    console.error('Resolve tenant error:', error);
+    return c.json({ error: 'Erro ao resolver tenant' }, 500);
+  }
+});

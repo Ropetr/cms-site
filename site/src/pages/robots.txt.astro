@@ -2,19 +2,20 @@
 /**
  * Robots.txt dinâmico
  */
+import { getSettings } from '../lib/api';
 
-const API_URL = import.meta.env.PUBLIC_API_URL || 'https://cms-site-api.planacacabamentos.workers.dev';
+const siteId = Astro.locals.siteId;
+const siteDomain = Astro.locals.siteDomain;
 
 let settings: any = {};
 
 try {
-  const res = await fetch(`${API_URL}/api/public/settings`);
-  if (res.ok) settings = (await res.json()).data || {};
+  settings = await getSettings(siteId) || {};
 } catch (error) {
   console.error('Error fetching settings:', error);
 }
 
-const siteUrl = settings.site_url || 'https://cms-site.pages.dev';
+const siteUrl = settings.site_url || `https://${siteDomain}`;
 
 const robotsContent = `# Robots.txt - ${settings.site_name || 'CMS Site'}
 # Gerado automaticamente

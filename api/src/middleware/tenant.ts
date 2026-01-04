@@ -14,6 +14,14 @@ export interface TenantContext {
   userRole: string;
 }
 
+export interface JWTPayload {
+  sub: string;
+  email: string;
+  name: string;
+  role: string;
+  exp: number;
+}
+
 /**
  * Middleware that extracts site_id from X-Site-Id header
  * and validates user has access to the site.
@@ -31,8 +39,8 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Env }>, next: Next
       return c.json({ error: 'Nao autenticado' }, 401);
     }
     
-    const payload = await verify(token, c.env.JWT_SECRET);
-    c.set('user', payload);
+    const payload = await verify(token, c.env.JWT_SECRET) as unknown as JWTPayload;
+    c.set('user' as never, payload as never);
     
     // Get site_id from header or default to 'site_default'
     const siteId = c.req.header('X-Site-Id') || 'site_default';
@@ -51,11 +59,11 @@ export const tenantMiddleware = async (c: Context<{ Bindings: Env }>, next: Next
     }
     
     // Set tenant context
-    c.set('tenant', {
+    c.set('tenant' as never, {
       siteId,
       organizationId: access.organization_id,
       userRole: access.role,
-    } as TenantContext);
+    } as never);
     
     await next();
   } catch (error) {

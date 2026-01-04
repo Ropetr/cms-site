@@ -23,6 +23,7 @@ import { aiRoutes } from './routes/ai';
 import { seoRoutes } from './routes/seo';
 import { organizationsRoutes } from './routes/organizations';
 import { sitesRoutes } from './routes/sites';
+import auditRoutes from './routes/audit';
 
 // Types
 export interface Env {
@@ -119,6 +120,7 @@ app.route('/api/categories', categoriesRoutes);
 app.route('/api/ai', aiRoutes);
 app.route('/api/organizations', organizationsRoutes);
 app.route('/api/sites', sitesRoutes);
+app.route('/api/audit', auditRoutes);
 
 // SEO routes (sitemap.xml, robots.txt)
 app.route('', seoRoutes);

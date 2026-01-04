@@ -108,6 +108,9 @@ pagesRoutes.post('/', async (c) => {
     const id = `page_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
     const publishedAt = status === 'published' ? new Date().toISOString() : null;
     
+    // Convert undefined to null for D1 compatibility
+    const safeNull = (val: any) => val === undefined ? null : val;
+    
     await c.env.DB.prepare(`
       INSERT INTO pages (
         id, site_id, title, slug, page_type, banner_image, banner_title, banner_subtitle,
@@ -116,9 +119,10 @@ pagesRoutes.post('/', async (c) => {
         published_at, created_by, updated_by
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).bind(
-      id, siteId, title, slug, page_type || 'content', banner_image, banner_title, banner_subtitle,
-      content, excerpt, meta_title, meta_description, meta_keywords,
-      canonical_url, og_image, menu_id, position || 0, is_featured ? 1 : 0, status || 'draft',
+      id, siteId, title, slug, page_type || 'content', 
+      safeNull(banner_image), safeNull(banner_title), safeNull(banner_subtitle),
+      safeNull(content), safeNull(excerpt), safeNull(meta_title), safeNull(meta_description), safeNull(meta_keywords),
+      safeNull(canonical_url), safeNull(og_image), safeNull(menu_id), position || 0, is_featured ? 1 : 0, status || 'draft',
       publishedAt, user.sub, user.sub
     ).run();
     

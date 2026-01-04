@@ -1,0 +1,68 @@
+---
+/**
+ * Sitemap.xml dinâmico
+ * Gera sitemap com todas as páginas e posts
+ */
+
+const API_URL = import.meta.env.PUBLIC_API_URL || 'https://cms-site-api.planacacabamentos.workers.dev';
+
+let pages: any[] = [];
+let posts: any[] = [];
+let settings: any = {};
+
+try {
+  const [pagesRes, postsRes, settingsRes] = await Promise.all([
+    fetch(`${API_URL}/api/public/pages`),
+    fetch(`${API_URL}/api/public/posts?limit=1000`),
+    fetch(`${API_URL}/api/public/settings`),
+  ]);
+
+  if (pagesRes.ok) pages = (await pagesRes.json()).data || [];
+  if (postsRes.ok) posts = (await postsRes.json()).data || [];
+  if (settingsRes.ok) settings = (await settingsRes.json()).data || {};
+} catch (error) {
+  console.error('Error fetching sitemap data:', error);
+}
+
+const siteUrl = settings.site_url || 'https://cms-site.pages.dev';
+
+// Páginas estáticas
+const staticPages = [
+  { url: '/', priority: '1.0', changefreq: 'daily' },
+  { url: '/blog', priority: '0.9', changefreq: 'daily' },
+  { url: '/contato', priority: '0.7', changefreq: 'monthly' },
+];
+
+// Formatar data para sitemap
+const formatDate = (date: string | null) => {
+  if (!date) return new Date().toISOString().split('T')[0];
+  return new Date(date).toISOString().split('T')[0];
+};
+
+// Gerar XML
+const xmlContent = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  ${staticPages.map(page => `
+  <url>
+    <loc>${siteUrl}${page.url}</loc>
+    <lastmod>${formatDate(null)}</lastmod>
+    <changefreq>${page.changefreq}</changefreq>
+    <priority>${page.priority}</priority>
+  </url>`).join('')}
+  ${pages.filter(p => p.status === 'published').map(page => `
+  <url>
+    <loc>${siteUrl}/${page.slug}</loc>
+    <lastmod>${formatDate(page.updated_at)}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>`).join('')}
+  ${posts.filter(p => p.status === 'published').map(post => `
+  <url>
+    <loc>${siteUrl}/blog/${post.slug}</loc>
+    <lastmod>${formatDate(post.updated_at || post.published_at)}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>`).join('')}
+</urlset>`.trim();
+---
+{xmlContent}

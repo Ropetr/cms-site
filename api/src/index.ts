@@ -21,6 +21,8 @@ import { categoriesRoutes } from './routes/categories';
 import { publicRoutes } from './routes/public';
 import { aiRoutes } from './routes/ai';
 import { seoRoutes } from './routes/seo';
+import { organizationsRoutes } from './routes/organizations';
+import { sitesRoutes } from './routes/sites';
 
 // Types
 export interface Env {
@@ -115,6 +117,8 @@ app.route('/api/contacts', contactsRoutes);
 app.route('/api/posts', postsRoutes);
 app.route('/api/categories', categoriesRoutes);
 app.route('/api/ai', aiRoutes);
+app.route('/api/organizations', organizationsRoutes);
+app.route('/api/sites', sitesRoutes);
 
 // SEO routes (sitemap.xml, robots.txt)
 app.route('', seoRoutes);
@@ -280,5 +284,4 @@ app.onError((err, c) => {
 });
 
 export default app;
-
 

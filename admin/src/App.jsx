@@ -13,6 +13,9 @@ import ThemesPage from './pages/ThemesPage'
 import SettingsPage from './pages/SettingsPage'
 import UsersPage from './pages/UsersPage'
 import PreviewPage from './pages/PreviewPage'
+import SitesPage from './pages/SitesPage'
+import SiteSettingsPage from './pages/SiteSettingsPage'
+import OrganizationsPage from './pages/OrganizationsPage'
 
 export default function App() {
   return (
@@ -38,6 +41,10 @@ export default function App() {
         <Route path="/themes" element={<ThemesPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/users" element={<UsersPage />} />
+        <Route path="/sites" element={<SitesPage />} />
+        <Route path="/sites/new" element={<SiteSettingsPage />} />
+        <Route path="/sites/:id" element={<SiteSettingsPage />} />
+        <Route path="/organizations" element={<OrganizationsPage />} />
       </Route>
 
       {/* 404 */}

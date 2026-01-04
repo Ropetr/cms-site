@@ -11,12 +11,16 @@ const api = axios.create({
   },
 })
 
-// Request interceptor - add auth token
+// Request interceptor - add auth token and site_id
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('auth_token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+    }
+    const siteId = localStorage.getItem('active_site_id')
+    if (siteId) {
+      config.headers['X-Site-Id'] = siteId
     }
     return config
   },
@@ -425,4 +429,110 @@ export const aiService = {
     return response.data
   },
 }
+
+// ============================================
+// SITES
+// ============================================
+export const sitesService = {
+  list: async () => {
+    const response = await api.get('/api/sites')
+    return response.data
+  },
+  
+  get: async (id) => {
+    const response = await api.get(`/api/sites/${id}`)
+    return response.data
+  },
+  
+  create: async (data) => {
+    const response = await api.post('/api/sites', data)
+    return response.data
+  },
+  
+  update: async (id, data) => {
+    const response = await api.put(`/api/sites/${id}`, data)
+    return response.data
+  },
+  
+  delete: async (id) => {
+    const response = await api.delete(`/api/sites/${id}`)
+    return response.data
+  },
+  
+  setDomain: async (id, domain) => {
+    const response = await api.post(`/api/sites/${id}/domain`, { domain })
+    return response.data
+  },
+  
+  getDomainStatus: async (id) => {
+    const response = await api.get(`/api/sites/${id}/domain/status`)
+    return response.data
+  },
+  
+  getUsers: async (id) => {
+    const response = await api.get(`/api/sites/${id}/users`)
+    return response.data
+  },
+  
+  addUser: async (id, data) => {
+    const response = await api.post(`/api/sites/${id}/users`, data)
+    return response.data
+  },
+  
+  removeUser: async (id, userId) => {
+    const response = await api.delete(`/api/sites/${id}/users/${userId}`)
+    return response.data
+  },
+}
+
+// ============================================
+// ORGANIZATIONS
+// ============================================
+export const organizationsService = {
+  list: async () => {
+    const response = await api.get('/api/organizations')
+    return response.data
+  },
+  
+  get: async (id) => {
+    const response = await api.get(`/api/organizations/${id}`)
+    return response.data
+  },
+  
+  create: async (data) => {
+    const response = await api.post('/api/organizations', data)
+    return response.data
+  },
+  
+  update: async (id, data) => {
+    const response = await api.put(`/api/organizations/${id}`, data)
+    return response.data
+  },
+  
+  delete: async (id) => {
+    const response = await api.delete(`/api/organizations/${id}`)
+    return response.data
+  },
+  
+  getUsers: async (id) => {
+    const response = await api.get(`/api/organizations/${id}/users`)
+    return response.data
+  },
+  
+  addUser: async (id, data) => {
+    const response = await api.post(`/api/organizations/${id}/users`, data)
+    return response.data
+  },
+  
+  removeUser: async (id, userId) => {
+    const response = await api.delete(`/api/organizations/${id}/users/${userId}`)
+    return response.data
+  },
+  
+  getSites: async (id) => {
+    const response = await api.get(`/api/organizations/${id}/sites`)
+    return response.data
+  },
+}
+
 export default api

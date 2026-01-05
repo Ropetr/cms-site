@@ -12,7 +12,8 @@
 
 import { test, expect } from '@playwright/test';
 
-const ADMIN_URL = process.env.ADMIN_URL || 'https://cms-site-admin.pages.dev';
+// Use baseURL from playwright.config.js (local preview server at http://localhost:4173)
+// This ensures tests run against the PR build, not production
 
 // =============================================================================
 // TESTES DE CARREGAMENTO DE PÁGINAS
@@ -20,14 +21,14 @@ const ADMIN_URL = process.env.ADMIN_URL || 'https://cms-site-admin.pages.dev';
 test.describe('📱 Páginas do Admin', () => {
   
   test('Página de Login carrega', async ({ page }) => {
-    await page.goto(ADMIN_URL);
+    await page.goto('/');
     
     // Deve mostrar formulário de login ou redirecionar para login
     await expect(page.locator('form, [data-testid="login-form"], input[type="email"], input[type="password"]').first()).toBeVisible({ timeout: 10000 });
   });
   
   test('Página de Login tem campos obrigatórios', async ({ page }) => {
-    await page.goto(`${ADMIN_URL}/login`);
+    await page.goto('/login');
     
     // Verificar campos de email e senha
     const emailInput = page.locator('input[type="email"], input[name="email"]').first();
@@ -38,7 +39,7 @@ test.describe('📱 Páginas do Admin', () => {
   });
   
   test('Login com credenciais inválidas mostra erro', async ({ page }) => {
-    await page.goto(`${ADMIN_URL}/login`);
+    await page.goto('/login');
     
     // Preencher formulário com dados inválidos
     await page.fill('input[type="email"], input[name="email"]', 'teste@invalido.com');
@@ -61,7 +62,7 @@ test.describe('📐 Responsividade', () => {
     // Simular tela de celular
     await page.setViewportSize({ width: 375, height: 667 });
     
-    await page.goto(`${ADMIN_URL}/login`);
+    await page.goto('/login');
     
     // Formulário deve estar visível
     await expect(page.locator('form').first()).toBeVisible({ timeout: 10000 });
@@ -70,7 +71,7 @@ test.describe('📐 Responsividade', () => {
   test('Login funciona em tablet', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     
-    await page.goto(`${ADMIN_URL}/login`);
+    await page.goto('/login');
     
     await expect(page.locator('form').first()).toBeVisible({ timeout: 10000 });
   });
@@ -84,7 +85,7 @@ test.describe('⚡ Performance', () => {
   test('Página carrega em menos de 5 segundos', async ({ page }) => {
     const startTime = Date.now();
     
-    await page.goto(ADMIN_URL);
+    await page.goto('/');
     await page.waitForLoadState('networkidle');
     
     const loadTime = Date.now() - startTime;
@@ -99,14 +100,14 @@ test.describe('⚡ Performance', () => {
 test.describe('♿ Acessibilidade', () => {
   
   test('Página tem título', async ({ page }) => {
-    await page.goto(ADMIN_URL);
+    await page.goto('/');
     
     const title = await page.title();
     expect(title).toBeTruthy();
   });
   
   test('Inputs têm labels ou placeholders', async ({ page }) => {
-    await page.goto(`${ADMIN_URL}/login`);
+    await page.goto('/login');
     
     const inputs = await page.locator('input').all();
     

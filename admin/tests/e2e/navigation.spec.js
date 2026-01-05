@@ -1,16 +1,9 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Navigation', () => {
-  test('should redirect to login when not authenticated', async ({ page }) => {
-    // Try to access protected route
+  test('should redirect to login when not authenticated (root/dashboard)', async ({ page }) => {
+    // Try to access protected route (dashboard is at root '/')
     await page.goto('/');
-    
-    // Should redirect to login
-    await expect(page).toHaveURL(/\/login/);
-  });
-
-  test('should redirect to login when accessing dashboard', async ({ page }) => {
-    await page.goto('/dashboard');
     
     // Should redirect to login
     await expect(page).toHaveURL(/\/login/);

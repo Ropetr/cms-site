@@ -152,6 +152,53 @@ export const menusService = {
 }
 
 // ============================================
+// MENU ITEMS
+// ============================================
+export const menuItemsService = {
+  // Listar itens de um menu específico
+  listByMenu: async (menuId) => {
+    const response = await api.get(`/api/menu-items/menu/${menuId}`)
+    return response.data
+  },
+  
+  // Buscar item por ID
+  get: async (id) => {
+    const response = await api.get(`/api/menu-items/${id}`)
+    return response.data
+  },
+  
+  // Criar item
+  create: async (data) => {
+    const response = await api.post('/api/menu-items', data)
+    return response.data
+  },
+  
+  // Atualizar item
+  update: async (id, data) => {
+    const response = await api.put(`/api/menu-items/${id}`, data)
+    return response.data
+  },
+  
+  // Deletar item
+  delete: async (id) => {
+    const response = await api.delete(`/api/menu-items/${id}`)
+    return response.data
+  },
+  
+  // Reordenar itens
+  reorder: async (items) => {
+    const response = await api.post('/api/menu-items/reorder', { items })
+    return response.data
+  },
+  
+  // Criar múltiplos itens de uma vez
+  bulkCreate: async (menuId, items) => {
+    const response = await api.post('/api/menu-items/bulk', { menu_id: menuId, items })
+    return response.data
+  },
+}
+
+// ============================================
 // MEDIA
 // ============================================
 export const mediaService = {

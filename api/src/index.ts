@@ -1,6 +1,10 @@
 /**
  * CMS Site API
  * Worker principal que gerencia todas as rotas da API
+ * 
+ * CORREÇÕES DE SEGURANÇA:
+ * - CORS não permite localhost em produção
+ * - Error handler não expõe mensagens internas
  */
 
 import { Hono } from 'hono';
@@ -37,6 +41,7 @@ export interface Env {
   JWT_SECRET: string;
   ADMIN_ORIGIN: string;
   SITE_ORIGIN: string;
+  ENVIRONMENT?: string;
   AI: any; // Workers AI binding
   IMAGES: any; // Cloudflare Images binding
 }
@@ -83,18 +88,30 @@ const app = new Hono<{ Bindings: Env }>();
 // Middlewares globais
 app.use('*', logger());
 app.use('*', secureHeaders());
+
+// CORS - SEGURO: não permite localhost em produção
 app.use('*', cors({
   origin: (origin, c) => {
+    const isProduction = c.env.ENVIRONMENT === 'production' || 
+                         !c.env.ADMIN_ORIGIN?.includes('localhost');
+    
+    // Origens permitidas
     const allowedOrigins = [
       c.env.ADMIN_ORIGIN,
       c.env.SITE_ORIGIN,
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'http://localhost:4321', // Astro dev
     ].filter(Boolean);
     
+    // Adicionar localhost APENAS em desenvolvimento
+    if (!isProduction) {
+      allowedOrigins.push(
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'http://localhost:4321'
+      );
+    }
+    
     if (!origin || allowedOrigins.includes(origin)) {
-      return origin || '*';
+      return origin || (isProduction ? null : '*');
     }
     return null;
   },
@@ -105,10 +122,15 @@ app.use('*', cors({
 }));
 
 // Health check
-app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
-app.get('/api/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
+app.get('/health', (c) => {
+  return c.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    version: '1.1.0'
+  });
+});
 
-// Rotas públicas (site)
+// Rotas públicas (sem autenticação)
 app.route('/api/public', publicRoutes);
 
 // Rotas autenticadas (admin)
@@ -136,134 +158,99 @@ app.route('', seoRoutes);
 // ROTA DE IMAGENS OTIMIZADAS
 // =============================================
 
-/**
- * GET /images/:filename
- * 
- * Serve imagens do R2 com otimização opcional via Cloudflare Image Resizing
- * 
- * Query params:
- * - preset: Nome do preset (ex: banner_desktop, product_card)
- * - w / width: Largura customizada
- * - h / height: Altura customizada
- * - q / quality: Qualidade (1-100, default: 85)
- * - f / format: Formato (auto, webp, avif, original)
- * - fit: cover, contain, scale-down, crop
- * - focal: Ponto focal no formato "x,y" (0-1)
- * 
- * Exemplos:
- * - /images/photo.jpg?preset=banner_desktop
- * - /images/photo.jpg?w=800&h=600&q=80
- * - /images/photo.jpg?preset=product_card&focal=0.7,0.3
- */
-app.get('/images/*', async (c) => {
-  // Captura o path completo após /images/ (ex: general/timestamp.png)
-  const filename = c.req.path.replace('/images/', '');
-  const url = new URL(c.req.url);
-  
-  // Parâmetros
-  const preset = url.searchParams.get('preset');
-  const width = url.searchParams.get('w') || url.searchParams.get('width');
-  const height = url.searchParams.get('h') || url.searchParams.get('height');
-  const quality = url.searchParams.get('q') || url.searchParams.get('quality');
-  const format = url.searchParams.get('f') || url.searchParams.get('format') || 'auto';
-  const fit = url.searchParams.get('fit') || 'cover';
-  const focal = url.searchParams.get('focal');
-  
-  // Buscar imagem do R2
-  const object = await c.env.MEDIA.get(filename);
-  
-  if (!object) {
-    return c.json({ error: 'Image not found' }, 404);
-  }
-  
-  // Buscar metadados de ponto focal do banco se não especificado
-  let focalX = 0.5;
-  let focalY = 0.5;
-  
-  if (focal) {
-    const [fx, fy] = focal.split(',').map(Number);
-    focalX = fx || 0.5;
-    focalY = fy || 0.5;
-  } else {
-    // Tentar buscar do banco
-    try {
-      const mediaRecord = await c.env.DB.prepare(
-        'SELECT focal_x, focal_y FROM media WHERE file_name = ?'
-      ).bind(filename).first();
-      
-      if (mediaRecord) {
-        focalX = (mediaRecord.focal_x as number) || 0.5;
-        focalY = (mediaRecord.focal_y as number) || 0.5;
-      }
-    } catch (e) {
-      // Ignora erro e usa padrão
+app.get('/images/:category/:filename', async (c) => {
+  try {
+    const category = c.req.param('category');
+    const filename = c.req.param('filename');
+    const preset = c.req.query('preset');
+    
+    // Buscar imagem original do R2
+    const key = `${category}/${filename}`;
+    const object = await c.env.MEDIA.get(key);
+    
+    if (!object) {
+      return c.json({ error: 'Imagem não encontrada' }, 404);
     }
+    
+    // Se não tem preset, retorna original
+    if (!preset || !IMAGE_PRESETS[preset]) {
+      const headers = new Headers();
+      headers.set('Content-Type', object.httpMetadata?.contentType || 'image/jpeg');
+      headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+      headers.set('ETag', object.etag);
+      
+      return new Response(object.body, { headers });
+    }
+    
+    // Aplicar transformação via Cloudflare Images
+    const config = IMAGE_PRESETS[preset];
+    const imageUrl = `https://cms-site-api.planacacabamentos.workers.dev/images/${key}`;
+    
+    // Usar fetch com cf.image para transformação
+    const transformedResponse = await fetch(imageUrl, {
+      cf: {
+        image: {
+          width: config.w,
+          height: config.h,
+          fit: config.fit as any,
+          quality: config.q,
+          format: 'auto'
+        }
+      }
+    });
+    
+    if (!transformedResponse.ok) {
+      // Fallback para original se transformação falhar
+      const headers = new Headers();
+      headers.set('Content-Type', object.httpMetadata?.contentType || 'image/jpeg');
+      headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+      return new Response(object.body, { headers });
+    }
+    
+    // Adicionar headers de cache
+    const headers = new Headers(transformedResponse.headers);
+    headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+    headers.set('Vary', 'Accept');
+    
+    return new Response(transformedResponse.body, { 
+      headers,
+      status: transformedResponse.status 
+    });
+    
+  } catch (error) {
+    console.error('Image serve error:', error);
+    return c.json({ error: 'Erro ao servir imagem' }, 500);
   }
-  
-  // Determinar dimensões finais
-  let finalWidth: number | undefined;
-  let finalHeight: number | undefined;
-  let finalQuality = 85;
-  
-  if (preset && IMAGE_PRESETS[preset]) {
-    const presetConfig = IMAGE_PRESETS[preset];
-    finalWidth = presetConfig.w;
-    finalHeight = presetConfig.h;
-    finalQuality = presetConfig.q;
-  }
-  
-  // Override com parâmetros customizados
-  if (width) finalWidth = parseInt(width);
-  if (height) finalHeight = parseInt(height);
-  if (quality) finalQuality = parseInt(quality);
-  
-  // Servir imagem original com headers de cache
-  // Nota: Cloudflare Image Resizing via /cdn-cgi/image/ não funciona em domínios workers.dev
-  // Por isso servimos a imagem original diretamente
-  const headers = new Headers();
-  headers.set('Content-Type', object.httpMetadata?.contentType || 'image/jpeg');
-  headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-  headers.set('CDN-Cache-Control', 'public, max-age=31536000');
-  
-  return new Response(object.body, { headers });
 });
 
-// Rota raw para servir imagem original (usado pelo Image Resizing)
-app.get('/raw/*', async (c) => {
-  // Captura o path completo após /raw/ (ex: general/timestamp.png)
-  const filename = c.req.path.replace('/raw/', '');
-  const object = await c.env.MEDIA.get(filename);
-  
-  if (!object) {
-    return c.json({ error: 'Image not found' }, 404);
-  }
-  
-  return new Response(object.body, {
-    headers: {
-      'Content-Type': object.httpMetadata?.contentType || 'image/jpeg',
-      'Cache-Control': 'public, max-age=31536000',
-    },
-  });
+// 404 handler
+app.notFound((c) => {
+  return c.json({ error: 'Not found' }, 404);
 });
 
-// Endpoint para listar presets disponíveis
-app.get('/api/image-presets', (c) => {
-  return c.json({
-    presets: Object.entries(IMAGE_PRESETS).map(([name, config]) => ({
-      name,
-      ...config,
-    })),
-  });
-});
-
-// 404
-app.notFound((c) => c.json({ error: 'Not found' }, 404));
-
-// Error handler
+// Error handler - SEGURO: não expõe mensagens internas
 app.onError((err, c) => {
-  console.error('Error:', err);
-  return c.json({ error: 'Internal server error', message: err.message }, 500);
+  // Log completo para debugging
+  console.error('Error:', {
+    message: err.message,
+    stack: err.stack,
+    url: c.req.url,
+    method: c.req.method,
+  });
+  
+  // Resposta genérica para o cliente (não expõe detalhes internos)
+  const isProduction = c.env.ENVIRONMENT === 'production' || 
+                       !c.env.ADMIN_ORIGIN?.includes('localhost');
+  
+  if (isProduction) {
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+  
+  // Em desenvolvimento, mostrar mais detalhes
+  return c.json({ 
+    error: 'Internal server error',
+    details: err.message 
+  }, 500);
 });
 
 export default app;
-

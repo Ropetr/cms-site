@@ -1,3 +1,15 @@
+import DOMPurify from "dompurify";
+
+// Função para sanitizar HTML e prevenir XSS
+const sanitizeHtml = (html) => {
+  if (!html) return "";
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ["p", "br", "strong", "em", "u", "a", "ul", "ol", "li", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "code", "pre", "img", "span", "div", "table", "thead", "tbody", "tr", "th", "td"],
+    ALLOWED_ATTR: ["href", "src", "alt", "class", "style", "target", "rel"],
+    ALLOW_DATA_ATTR: false,
+  });
+};
+
 import { useParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, Edit, ExternalLink, Smartphone, Monitor, Tablet } from 'lucide-react'
@@ -288,7 +300,7 @@ function TextBlock({ data, layout }) {
         {data.title && <h2 className="text-3xl font-bold mb-6">{data.title}</h2>}
         <div 
           className="prose prose-lg max-w-none"
-          dangerouslySetInnerHTML={{ __html: data.content || data.text || '' }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content || data.text || "") }}
         />
       </div>
     </section>
@@ -315,7 +327,7 @@ function MediaTextBlock({ data, layout }) {
           {data.title && <h2 className="text-3xl font-bold mb-4">{data.title}</h2>}
           <div 
             className="prose prose-lg"
-            dangerouslySetInnerHTML={{ __html: data.content || data.text || '' }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.content || data.text || "") }}
           />
           {data.cta_text && (
             <a 
@@ -636,7 +648,7 @@ function CustomHTMLBlock({ data }) {
     <section className="py-8 px-4">
       <div 
         className="max-w-6xl mx-auto"
-        dangerouslySetInnerHTML={{ __html: data.html || data.content || '' }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(data.html || data.content || "") }}
       />
     </section>
   )

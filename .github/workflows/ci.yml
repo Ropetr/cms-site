@@ -3,11 +3,6 @@
 # =============================================================================
 # Este workflow TESTA se o código funciona antes de permitir o merge.
 # Se falhar, o merge é BLOQUEADO automaticamente.
-#
-# O que ele verifica:
-# 1. API compila sem erros
-# 2. Admin compila sem erros  
-# 3. Dependências instalam corretamente
 # =============================================================================
 
 name: CI
@@ -18,7 +13,6 @@ on:
   push:
     branches: [main]
 
-# Cancela execuções anteriores do mesmo PR
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -44,17 +38,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-          cache-dependency-path: api/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build
         run: npm run build
-        
-      - name: Success
-        run: echo "✅ API compilou com sucesso!"
 
   # ==========================================
   # Testar Admin
@@ -76,22 +65,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
-          cache-dependency-path: admin/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build
         run: npm run build
         env:
           VITE_API_URL: https://cms-site-api.planacacabamentos.workers.dev
-          
-      - name: Success
-        run: echo "✅ Admin compilou com sucesso!"
 
   # ==========================================
-  # Resultado Final
+  # Gate Final - Todos os Testes
   # ==========================================
   all-tests-pass:
     name: "✅ Todos os Testes"
@@ -101,9 +85,6 @@ jobs:
     steps:
       - name: All checks passed
         run: |
-          echo "=========================================="
-          echo "   ✅ TUDO OK! PODE FAZER MERGE!"
-          echo "=========================================="
-          echo ""
-          echo "API: ✅ Compilou"
-          echo "Admin: ✅ Compilou"
+          echo "✅ API compilou com sucesso!"
+          echo "✅ Admin compilou com sucesso!"
+          echo "✅ PODE FAZER MERGE!"

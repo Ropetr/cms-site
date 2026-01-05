@@ -10,20 +10,27 @@ compatibility_date = "2024-01-01"
 [env.production]
 vars = { ENVIRONMENT = "production" }
 
-# Bindings
+# ==========================================
+# BINDINGS
+# ==========================================
+
+# D1 Database
 [[d1_databases]]
 binding = "DB"
 database_name = "cms-site-db"
 database_id = "8961e5db-b486-4bc5-bf35-be81240be063"
 
+# R2 Bucket para mídia
 [[r2_buckets]]
 binding = "MEDIA"
 bucket_name = "cms-site-media"
 
+# KV Namespace para cache
 [[kv_namespaces]]
 binding = "CACHE"
 id = "bcdc2b754e8049d38da38f0e004c7104"
 
+# KV Namespace para sessões
 [[kv_namespaces]]
 binding = "SESSIONS"
 id = "1e35f7e79bc645d09441f6200efb0183"
@@ -32,11 +39,21 @@ id = "1e35f7e79bc645d09441f6200efb0183"
 [ai]
 binding = "AI"
 
-# Variáveis de ambiente
+# Cloudflare Images Binding - Para transformação de imagens
+# Requer Images Paid subscription
+[images]
+binding = "IMAGES"
+
+# ==========================================
+# VARIÁVEIS DE AMBIENTE
+# ==========================================
+
 [vars]
 ADMIN_ORIGIN = "https://cms-site-admin.pages.dev"
 SITE_ORIGIN = "https://cms-site.pages.dev"
 ENVIRONMENT = "production"
 
-# Secrets (configurar via: wrangler secret put JWT_SECRET)
-# JWT_SECRET = "seu-secret-aqui"
+# ==========================================
+# SECRETS (configurar via wrangler secret put)
+# ==========================================
+# JWT_SECRET = "..."

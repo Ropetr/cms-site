@@ -32,40 +32,11 @@ id = "1e35f7e79bc645d09441f6200efb0183"
 [ai]
 binding = "AI"
 
-# Cloudflare Images - Para transformação e otimização de imagens
-[images]
-binding = "IMAGES"
-
-# Durable Objects (opcional - para coordenação de cache)
-# Descomentar quando precisar de Durable Objects
-# [[durable_objects.bindings]]
-# name = "CACHE_COORDINATOR"
-# class_name = "CacheCoordinator"
-
-# [[durable_objects.bindings]]
-# name = "WRITE_SERIALIZER"
-# class_name = "WriteSerializer"
-
-# [durable_objects]
-# [[durable_objects.migrations]]
-# tag = "v1"
-# new_classes = ["CacheCoordinator", "WriteSerializer"]
-
-# Queues (opcional - para processamento assíncrono)
-# Descomentar quando precisar de Queues
-# [[queues.producers]]
-# queue = "cms-tasks"
-# binding = "TASKS_QUEUE"
-
-# [[queues.consumers]]
-# queue = "cms-tasks"
-# max_batch_size = 10
-# max_batch_timeout = 30
-
-# Variáveis de ambiente (definir no dashboard ou via wrangler secret)
+# Variáveis de ambiente
 [vars]
 ADMIN_ORIGIN = "https://cms-site-admin.pages.dev"
 SITE_ORIGIN = "https://cms-site.pages.dev"
+ENVIRONMENT = "production"
 
 # Secrets (configurar via: wrangler secret put JWT_SECRET)
 # JWT_SECRET = "seu-secret-aqui"

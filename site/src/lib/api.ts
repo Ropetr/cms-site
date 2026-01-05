@@ -32,6 +32,11 @@ export async function getPage(slug: string, siteId?: string) {
   return data.data || data;
 }
 
+export async function getPreviewPage(slug: string, siteId?: string) {
+  const data = await fetchAPI(`/api/public/preview/${slug}`, siteId);
+  return data.data || data;
+}
+
 export async function getAllPages(siteId?: string) {
   const data = await fetchAPI('/api/public/pages', siteId);
   return data.data || [];

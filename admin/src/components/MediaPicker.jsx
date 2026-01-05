@@ -93,6 +93,36 @@ export default function MediaPicker({
     }
   })
 
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => {
+      const response = await fetch(`${API_URL}/api/media/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'X-Site-Id': localStorage.getItem('active_site_id') || ''
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error('Delete failed')
+      }
+      
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['media-picker'])
+      setSelectedMedia(null)
+    }
+  })
+
+  // Handler para deletar mídia
+  const handleDeleteMedia = () => {
+    if (selectedMedia && window.confirm('Tem certeza que deseja excluir esta imagem? Esta ação não pode ser desfeita.')) {
+      deleteMutation.mutate(selectedMedia.id)
+    }
+  }
+
   // Handlers
   const handleOpen = () => setIsOpen(true)
   
@@ -429,8 +459,23 @@ export default function MediaPicker({
                   </div>
 
                   <p className="text-xs text-gray-400 mt-2">
-                    💡 Edite o ponto focal na página de Mídia
+                    Edite o ponto focal na pagina de Midia
                   </p>
+
+                  {/* Delete Button */}
+                  <button
+                    type="button"
+                    onClick={handleDeleteMedia}
+                    disabled={deleteMutation.isPending}
+                    className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
+                  >
+                    {deleteMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4" />
+                    )}
+                    Excluir Imagem
+                  </button>
                 </div>
               )}
             </div>

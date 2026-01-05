@@ -221,6 +221,46 @@ publicRoutes.get('/pages/:slug', async (c) => {
   }
 });
 
+// Preview de página (funciona para draft e published)
+// Não usa cache para sempre mostrar dados atualizados
+publicRoutes.get('/preview/:slug', async (c) => {
+  try {
+    const slug = c.req.param('slug');
+    
+    // Buscar página sem filtrar por status (permite draft e published)
+    const page = await c.env.DB.prepare(`
+      SELECT 
+        p.*,
+        m.name as menu_name, m.slug as menu_slug
+      FROM pages p
+      LEFT JOIN menus m ON p.menu_id = m.id
+      WHERE p.slug = ?
+    `).bind(slug).first();
+    
+    if (!page) {
+      return c.json({ error: 'Página não encontrada' }, 404);
+    }
+    
+    // Buscar seções (incluindo não visíveis para preview completo)
+    const sections = await c.env.DB.prepare(
+      'SELECT * FROM page_sections WHERE page_id = ? ORDER BY position ASC'
+    ).bind(page.id).all();
+    
+    // Parsear conteúdo das seções
+    const parsedSections = sections.results.map((section: any) => ({
+      ...section,
+      content: section.content ? JSON.parse(section.content) : null,
+    }));
+    
+    const data = { ...page, sections: parsedSections, isPreview: true };
+    
+    return c.json({ success: true, data });
+  } catch (error) {
+    console.error('Get preview page error:', error);
+    return c.json({ error: 'Erro ao buscar página para preview' }, 500);
+  }
+});
+
 // Página inicial
 publicRoutes.get('/home', async (c) => {
   try {

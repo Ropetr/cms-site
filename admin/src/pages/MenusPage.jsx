@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Trash2, Edit, ChevronRight, ChevronDown, ExternalLink,
-  Menu as MenuIcon, Link as LinkIcon, FileText, Home,
+  Menu as MenuIcon, Link as LinkIcon, FileText, Home, GripVertical,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Card, CardBody, CardHeader, Button, Input, Select, Modal, Loading, Badge } from '../components/ui'
-import { menusService, pagesService } from '../services/api'
+import { menusService, menuItemsService, pagesService } from '../services/api'
 
 export default function MenusPage() {
   const queryClient = useQueryClient()
@@ -15,43 +15,53 @@ export default function MenusPage() {
   const [addItemModal, setAddItemModal] = useState(false)
   const [createMenuModal, setCreateMenuModal] = useState(false)
   const [deleteMenuModal, setDeleteMenuModal] = useState(null)
+  const [deleteItemModal, setDeleteItemModal] = useState(null)
 
+  // Buscar menus
   const { data: menusData, isLoading } = useQuery({
     queryKey: ['menus'],
     queryFn: () => menusService.list(),
   })
 
+  // Buscar páginas para vincular
   const { data: pagesData } = useQuery({
     queryKey: ['pages'],
     queryFn: () => pagesService.list(),
   })
 
+  // Buscar itens do menu selecionado
+  const { data: menuItemsData, isLoading: isLoadingItems } = useQuery({
+    queryKey: ['menu-items', selectedMenu?.id],
+    queryFn: () => menuItemsService.listByMenu(selectedMenu.id),
+    enabled: !!selectedMenu?.id,
+  })
+
   const menus = menusData?.data || []
   const pages = pagesData?.data || []
+  const menuItems = menuItemsData?.data || []
 
+  // Selecionar primeiro menu automaticamente
   useEffect(() => {
     if (menus.length > 0 && !selectedMenu) {
       setSelectedMenu(menus[0])
     }
   }, [menus, selectedMenu])
 
+  // Mutations
   const createMenuMutation = useMutation({
     mutationFn: (data) => menusService.create(data),
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries(['menus'])
       toast.success('Menu criado!')
       setCreateMenuModal(false)
+      // Selecionar o novo menu
+      if (response?.data?.id) {
+        setSelectedMenu({ id: response.data.id, ...response.data })
+      }
     },
-    onError: () => toast.error('Erro ao criar menu'),
-  })
-
-  const updateMenuMutation = useMutation({
-    mutationFn: ({ id, data }) => menusService.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['menus'])
-      toast.success('Menu atualizado!')
+    onError: (error) => {
+      toast.error(error.response?.data?.error || 'Erro ao criar menu')
     },
-    onError: () => toast.error('Erro ao atualizar'),
   })
 
   const deleteMenuMutation = useMutation({
@@ -62,56 +72,104 @@ export default function MenusPage() {
       setDeleteMenuModal(null)
       setSelectedMenu(null)
     },
-    onError: () => toast.error('Erro ao excluir'),
+    onError: (error) => {
+      toast.error(error.response?.data?.error || 'Erro ao excluir menu')
+    },
   })
 
-  const getMenuItems = (menu) => {
-    if (!menu?.items) return []
-    try {
-      return typeof menu.items === 'string' ? JSON.parse(menu.items) : menu.items
-    } catch { return [] }
-  }
+  // Menu Items Mutations
+  const createItemMutation = useMutation({
+    mutationFn: (data) => menuItemsService.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['menu-items', selectedMenu?.id])
+      toast.success('Item adicionado!')
+      setAddItemModal(false)
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.error || 'Erro ao adicionar item')
+    },
+  })
 
-  const saveMenuItems = (items) => {
-    if (!selectedMenu) return
-    updateMenuMutation.mutate({ id: selectedMenu.id, data: { items: JSON.stringify(items) } })
-    setSelectedMenu({ ...selectedMenu, items: JSON.stringify(items) })
-  }
+  const updateItemMutation = useMutation({
+    mutationFn: ({ id, data }) => menuItemsService.update(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['menu-items', selectedMenu?.id])
+      toast.success('Item atualizado!')
+      setEditingItem(null)
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.error || 'Erro ao atualizar item')
+    },
+  })
 
-  const handleAddItem = (item) => {
-    const items = getMenuItems(selectedMenu)
-    items.push({ id: `item_${Date.now()}`, ...item })
-    saveMenuItems(items)
-    setAddItemModal(false)
+  const deleteItemMutation = useMutation({
+    mutationFn: (id) => menuItemsService.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['menu-items', selectedMenu?.id])
+      toast.success('Item excluído!')
+      setDeleteItemModal(null)
+    },
+    onError: (error) => {
+      toast.error(error.response?.data?.error || 'Erro ao excluir item')
+    },
+  })
+
+  const reorderItemsMutation = useMutation({
+    mutationFn: (items) => menuItemsService.reorder(items),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['menu-items', selectedMenu?.id])
+    },
+    onError: () => {
+      toast.error('Erro ao reordenar')
+    },
+  })
+
+  // Handlers
+  const handleAddItem = (itemData) => {
+    createItemMutation.mutate({
+      menu_id: selectedMenu.id,
+      ...itemData,
+      position: menuItems.length,
+    })
   }
 
   const handleUpdateItem = (itemId, updates) => {
-    const items = getMenuItems(selectedMenu)
-    const index = items.findIndex(i => i.id === itemId)
-    if (index !== -1) {
-      items[index] = { ...items[index], ...updates }
-      saveMenuItems(items)
-    }
-    setEditingItem(null)
+    updateItemMutation.mutate({ id: itemId, data: updates })
   }
 
-  const handleDeleteItem = (itemId) => {
-    const items = getMenuItems(selectedMenu).filter(i => i.id !== itemId)
-    saveMenuItems(items)
+  const handleDeleteItem = (item) => {
+    setDeleteItemModal(item)
+  }
+
+  const confirmDeleteItem = () => {
+    if (deleteItemModal) {
+      deleteItemMutation.mutate(deleteItemModal.id)
+    }
   }
 
   const handleMoveItem = (index, direction) => {
-    const items = getMenuItems(selectedMenu)
     const newIndex = direction === 'up' ? index - 1 : index + 1
-    if (newIndex < 0 || newIndex >= items.length) return
-    ;[items[index], items[newIndex]] = [items[newIndex], items[index]]
-    saveMenuItems(items)
+    if (newIndex < 0 || newIndex >= menuItems.length) return
+
+    const reorderedItems = [...menuItems]
+    const [moved] = reorderedItems.splice(index, 1)
+    reorderedItems.splice(newIndex, 0, moved)
+
+    // Atualizar posições
+    const updates = reorderedItems.map((item, i) => ({
+      id: item.id,
+      position: i,
+      parent_item_id: item.parent_item_id || null,
+    }))
+
+    reorderItemsMutation.mutate(updates)
   }
 
   if (isLoading) return <Loading fullScreen text="Carregando menus..." />
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Menus</h1>
@@ -123,6 +181,7 @@ export default function MenusPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Lista de Menus */}
         <div className="lg:col-span-1">
           <Card>
             <CardHeader><h2 className="font-semibold">Menus</h2></CardHeader>
@@ -135,12 +194,16 @@ export default function MenusPage() {
               ) : (
                 <div className="divide-y">
                   {menus.map((menu) => (
-                    <button key={menu.id} onClick={() => setSelectedMenu(menu)}
-                      className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 ${
-                        selectedMenu?.id === menu.id ? 'bg-primary-50 border-l-4 border-primary-500' : ''}`}>
+                    <button
+                      key={menu.id}
+                      onClick={() => setSelectedMenu(menu)}
+                      className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors ${
+                        selectedMenu?.id === menu.id ? 'bg-primary-50 border-l-4 border-primary-500' : ''
+                      }`}
+                    >
                       <div>
                         <p className="font-medium">{menu.name}</p>
-                        <p className="text-sm text-gray-500">{menu.location}</p>
+                        <p className="text-sm text-gray-500">{menu.slug}</p>
                       </div>
                       <ChevronRight className="w-4 h-4 text-gray-400" />
                     </button>
@@ -151,16 +214,21 @@ export default function MenusPage() {
           </Card>
         </div>
 
+        {/* Itens do Menu Selecionado */}
         <div className="lg:col-span-3">
           {selectedMenu ? (
             <Card>
               <CardHeader className="flex items-center justify-between">
                 <div>
                   <h2 className="font-semibold">{selectedMenu.name}</h2>
-                  <p className="text-sm text-gray-500">{selectedMenu.location}</p>
+                  <p className="text-sm text-gray-500">/{selectedMenu.slug}</p>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setDeleteMenuModal(selectedMenu)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDeleteMenuModal(selectedMenu)}
+                  >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                   <Button size="sm" onClick={() => setAddItemModal(true)}>
@@ -169,7 +237,11 @@ export default function MenusPage() {
                 </div>
               </CardHeader>
               <CardBody className="p-0">
-                {getMenuItems(selectedMenu).length === 0 ? (
+                {isLoadingItems ? (
+                  <div className="p-8">
+                    <Loading text="Carregando itens..." />
+                  </div>
+                ) : menuItems.length === 0 ? (
                   <div className="p-8 text-center">
                     <LinkIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                     <p className="text-gray-500 mb-4">Nenhum item no menu</p>
@@ -179,34 +251,65 @@ export default function MenusPage() {
                   </div>
                 ) : (
                   <div className="divide-y">
-                    {getMenuItems(selectedMenu).map((item, index) => (
-                      <div key={item.id} className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50">
+                    {menuItems.map((item, index) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors"
+                      >
+                        {/* Botões de Ordenação */}
                         <div className="flex flex-col gap-1">
-                          <button onClick={() => handleMoveItem(index, 'up')} disabled={index === 0}
-                            className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">
+                          <button
+                            onClick={() => handleMoveItem(index, 'up')}
+                            disabled={index === 0}
+                            className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                          >
                             <ChevronDown className="w-4 h-4 rotate-180" />
                           </button>
-                          <button onClick={() => handleMoveItem(index, 'down')}
-                            disabled={index === getMenuItems(selectedMenu).length - 1}
-                            className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30">
+                          <button
+                            onClick={() => handleMoveItem(index, 'down')}
+                            disabled={index === menuItems.length - 1}
+                            className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                          >
                             <ChevronDown className="w-4 h-4" />
                           </button>
                         </div>
+
+                        {/* Ícone do Tipo */}
                         <div className="flex-shrink-0">
-                          {item.type === 'page' ? <FileText className="w-5 h-5 text-gray-400" /> :
-                           item.type === 'home' ? <Home className="w-5 h-5 text-gray-400" /> :
-                           <ExternalLink className="w-5 h-5 text-gray-400" />}
+                          {item.item_type === 'page' ? (
+                            <FileText className="w-5 h-5 text-gray-400" />
+                          ) : item.item_type === 'home' ? (
+                            <Home className="w-5 h-5 text-gray-400" />
+                          ) : (
+                            <ExternalLink className="w-5 h-5 text-gray-400" />
+                          )}
                         </div>
+
+                        {/* Conteúdo */}
                         <div className="flex-1 min-w-0">
                           <p className="font-medium">{item.label}</p>
                           <p className="text-sm text-gray-500 truncate">{item.url || '/'}</p>
                         </div>
-                        {item.target === '_blank' && <Badge>Nova aba</Badge>}
+
+                        {/* Badge Nova Aba */}
+                        {item.target === '_blank' && (
+                          <Badge variant="secondary">Nova aba</Badge>
+                        )}
+
+                        {/* Ações */}
                         <div className="flex gap-2">
-                          <Button size="icon" variant="ghost" onClick={() => setEditingItem(item)}>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setEditingItem(item)}
+                          >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={() => handleDeleteItem(item.id)}>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleDeleteItem(item)}
+                          >
                             <Trash2 className="w-4 h-4 text-red-500" />
                           </Button>
                         </div>
@@ -220,45 +323,125 @@ export default function MenusPage() {
             <Card>
               <CardBody className="p-8 text-center">
                 <MenuIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">Selecione um menu</p>
+                <p className="text-gray-500">Selecione um menu para editar</p>
               </CardBody>
             </Card>
           )}
         </div>
       </div>
 
-      <Modal isOpen={createMenuModal} onClose={() => setCreateMenuModal(false)} title="Criar Menu" size="md">
-        <CreateMenuForm onSubmit={(data) => createMenuMutation.mutate(data)}
-          onCancel={() => setCreateMenuModal(false)} loading={createMenuMutation.isPending} />
+      {/* Modal: Criar Menu */}
+      <Modal
+        isOpen={createMenuModal}
+        onClose={() => setCreateMenuModal(false)}
+        title="Criar Menu"
+        size="md"
+      >
+        <CreateMenuForm
+          onSubmit={(data) => createMenuMutation.mutate(data)}
+          onCancel={() => setCreateMenuModal(false)}
+          loading={createMenuMutation.isPending}
+        />
       </Modal>
 
-      <Modal isOpen={addItemModal} onClose={() => setAddItemModal(false)} title="Adicionar Item" size="md">
-        <MenuItemForm pages={pages} onSubmit={handleAddItem} onCancel={() => setAddItemModal(false)} />
+      {/* Modal: Adicionar Item */}
+      <Modal
+        isOpen={addItemModal}
+        onClose={() => setAddItemModal(false)}
+        title="Adicionar Item"
+        size="md"
+      >
+        <MenuItemForm
+          pages={pages}
+          onSubmit={handleAddItem}
+          onCancel={() => setAddItemModal(false)}
+          loading={createItemMutation.isPending}
+        />
       </Modal>
 
-      <Modal isOpen={!!editingItem} onClose={() => setEditingItem(null)} title="Editar Item" size="md">
-        {editingItem && <MenuItemForm pages={pages} initialData={editingItem}
-          onSubmit={(data) => handleUpdateItem(editingItem.id, data)} onCancel={() => setEditingItem(null)} />}
+      {/* Modal: Editar Item */}
+      <Modal
+        isOpen={!!editingItem}
+        onClose={() => setEditingItem(null)}
+        title="Editar Item"
+        size="md"
+      >
+        {editingItem && (
+          <MenuItemForm
+            pages={pages}
+            initialData={editingItem}
+            onSubmit={(data) => handleUpdateItem(editingItem.id, data)}
+            onCancel={() => setEditingItem(null)}
+            loading={updateItemMutation.isPending}
+          />
+        )}
       </Modal>
 
-      <Modal isOpen={!!deleteMenuModal} onClose={() => setDeleteMenuModal(null)} title="Excluir Menu" size="sm">
+      {/* Modal: Deletar Menu */}
+      <Modal
+        isOpen={!!deleteMenuModal}
+        onClose={() => setDeleteMenuModal(null)}
+        title="Excluir Menu"
+        size="sm"
+      >
         <div className="space-y-4">
-          <p>Excluir <strong>{deleteMenuModal?.name}</strong>?</p>
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setDeleteMenuModal(null)}>Cancelar</Button>
-            <Button variant="danger" onClick={() => deleteMenuMutation.mutate(deleteMenuModal.id)}
-              loading={deleteMenuMutation.isPending}>Excluir</Button>
+          <p className="text-gray-600">
+            Tem certeza que deseja excluir o menu <strong>{deleteMenuModal?.name}</strong>?
+          </p>
+          <p className="text-sm text-red-600">
+            Todos os itens do menu também serão excluídos. Esta ação não pode ser desfeita.
+          </p>
+          <div className="flex justify-end gap-3 pt-4">
+            <Button variant="outline" onClick={() => setDeleteMenuModal(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => deleteMenuMutation.mutate(deleteMenuModal.id)}
+              loading={deleteMenuMutation.isPending}
+            >
+              Excluir
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal: Deletar Item */}
+      <Modal
+        isOpen={!!deleteItemModal}
+        onClose={() => setDeleteItemModal(null)}
+        title="Excluir Item"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600">
+            Tem certeza que deseja excluir o item <strong>{deleteItemModal?.label}</strong>?
+          </p>
+          <div className="flex justify-end gap-3 pt-4">
+            <Button variant="outline" onClick={() => setDeleteItemModal(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="danger"
+              onClick={confirmDeleteItem}
+              loading={deleteItemMutation.isPending}
+            >
+              Excluir
+            </Button>
           </div>
         </div>
       </Modal>
     </div>
   )
 }
+
+// ============================================
+// FORM: Criar Menu
+// ============================================
 function CreateMenuForm({ onSubmit, onCancel, loading }) {
   const [name, setName] = useState('')
   const [location, setLocation] = useState('header')
 
-  // Gerar slug automaticamente a partir do nome
   const generateSlug = (text) => {
     return text
       .toLowerCase()
@@ -270,64 +453,139 @@ function CreateMenuForm({ onSubmit, onCancel, loading }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    if (!name.trim()) {
+      return
+    }
     const slug = generateSlug(name)
-    onSubmit({ name, slug, location, items: '[]' })
+    onSubmit({ name, slug, location })
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <Input label="Nome" value={name} onChange={(e) => setName(e.target.value)} required placeholder="Ex: Menu Principal" />
-      <Select label="Localização" value={location} onChange={(e) => setLocation(e.target.value)}
+      <Input
+        label="Nome do Menu"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        required
+        placeholder="Ex: Menu Principal"
+      />
+      <Select
+        label="Localização"
+        value={location}
+        onChange={(e) => setLocation(e.target.value)}
         options={[
-          { value: 'header', label: 'Header' },
-          { value: 'footer', label: 'Footer' },
-          { value: 'sidebar', label: 'Sidebar' },
-        ]} />
-      <div className="flex justify-end gap-3">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit" loading={loading}>Criar</Button>
+          { value: 'header', label: 'Header (Cabeçalho)' },
+          { value: 'footer', label: 'Footer (Rodapé)' },
+          { value: 'sidebar', label: 'Sidebar (Lateral)' },
+        ]}
+      />
+      <div className="flex justify-end gap-3 pt-4">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="submit" loading={loading}>
+          Criar Menu
+        </Button>
       </div>
     </form>
   )
 }
 
-function MenuItemForm({ pages, initialData, onSubmit, onCancel }) {
-  const [type, setType] = useState(initialData?.type || 'page')
+// ============================================
+// FORM: Item do Menu
+// ============================================
+function MenuItemForm({ pages, initialData, onSubmit, onCancel, loading }) {
+  const [itemType, setItemType] = useState(initialData?.item_type || 'page')
   const [label, setLabel] = useState(initialData?.label || '')
   const [url, setUrl] = useState(initialData?.url || '')
-  const [pageSlug, setPageSlug] = useState(initialData?.page_slug || '')
+  const [pageId, setPageId] = useState(initialData?.page_id || '')
   const [target, setTarget] = useState(initialData?.target || '_self')
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    const item = { type, label, target }
-    if (type === 'page') { item.page_slug = pageSlug; item.url = `/${pageSlug}` }
-    else if (type === 'home') { item.url = '/' }
-    else { item.url = url }
-    onSubmit(item)
+    if (!label.trim()) {
+      return
+    }
+
+    const itemData = {
+      item_type: itemType,
+      label: label.trim(),
+      target,
+    }
+
+    if (itemType === 'page' && pageId) {
+      itemData.page_id = pageId
+      const page = pages.find(p => p.id === pageId)
+      itemData.url = page ? `/${page.slug}` : ''
+    } else if (itemType === 'home') {
+      itemData.url = '/'
+    } else if (itemType === 'external') {
+      itemData.url = url
+    }
+
+    onSubmit(itemData)
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <Select label="Tipo" value={type} onChange={(e) => setType(e.target.value)}
+      <Select
+        label="Tipo de Item"
+        value={itemType}
+        onChange={(e) => setItemType(e.target.value)}
         options={[
-          { value: 'home', label: 'Home' },
-          { value: 'page', label: 'Página' },
+          { value: 'home', label: 'Home (Página Inicial)' },
+          { value: 'page', label: 'Página do Site' },
           { value: 'external', label: 'Link Externo' },
-        ]} />
-      <Input label="Texto" value={label} onChange={(e) => setLabel(e.target.value)} required />
-      {type === 'page' && (
-        <Select label="Página" value={pageSlug} onChange={(e) => setPageSlug(e.target.value)}
-          options={[{ value: '', label: 'Selecione...' }, ...pages.map(p => ({ value: p.slug, label: p.title }))]} />
+        ]}
+      />
+
+      <Input
+        label="Texto do Link"
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        required
+        placeholder="Ex: Sobre Nós"
+      />
+
+      {itemType === 'page' && (
+        <Select
+          label="Selecione a Página"
+          value={pageId}
+          onChange={(e) => setPageId(e.target.value)}
+          options={[
+            { value: '', label: 'Selecione uma página...' },
+            ...pages.map(p => ({ value: p.id, label: `${p.title} (/${p.slug})` }))
+          ]}
+        />
       )}
-      {type === 'external' && (
-        <Input label="URL" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://" />
+
+      {itemType === 'external' && (
+        <Input
+          label="URL"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://exemplo.com"
+          type="url"
+        />
       )}
-      <Select label="Abrir em" value={target} onChange={(e) => setTarget(e.target.value)}
-        options={[{ value: '_self', label: 'Mesma janela' }, { value: '_blank', label: 'Nova aba' }]} />
-      <div className="flex justify-end gap-3">
-        <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-        <Button type="submit">{initialData ? 'Salvar' : 'Adicionar'}</Button>
+
+      <Select
+        label="Abrir em"
+        value={target}
+        onChange={(e) => setTarget(e.target.value)}
+        options={[
+          { value: '_self', label: 'Mesma janela' },
+          { value: '_blank', label: 'Nova aba' },
+        ]}
+      />
+
+      <div className="flex justify-end gap-3 pt-4">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="submit" loading={loading}>
+          {initialData ? 'Salvar Alterações' : 'Adicionar Item'}
+        </Button>
       </div>
     </form>
   )

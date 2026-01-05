@@ -189,7 +189,16 @@ export default function MediaPicker({
   }
 
   // Gerar URL de preview com dimensões
+  // Prioriza thumbnail_url se disponível para melhor performance
   const getPreviewUrl = (item, width = 200) => {
+    // Se tem thumbnail_url e é para preview pequeno, usar thumbnail
+    if (item.thumbnail_url && width <= 200) {
+      return item.thumbnail_url
+    }
+    // Caso contrário, usar a URL original ou com resize
+    if (item.url) {
+      return `${item.url}?w=${width}&q=80`
+    }
     return `${API_URL}/images/${item.file_name}?w=${width}&q=80`
   }
 

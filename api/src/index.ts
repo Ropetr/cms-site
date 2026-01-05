@@ -12,6 +12,7 @@ import { secureHeaders } from 'hono/secure-headers';
 import { authRoutes } from './routes/auth';
 import { pagesRoutes } from './routes/pages';
 import { menusRoutes } from './routes/menus';
+import { menuItemsRoutes } from './routes/menu-items';
 import { mediaRoutes } from './routes/media';
 import { settingsRoutes } from './routes/settings';
 import { themesRoutes } from './routes/themes';
@@ -37,6 +38,7 @@ export interface Env {
   ADMIN_ORIGIN: string;
   SITE_ORIGIN: string;
   AI: any; // Workers AI binding
+  IMAGES: any; // Cloudflare Images binding
 }
 
 // Presets de imagem (whitelist)
@@ -113,6 +115,7 @@ app.route('/api/public', publicRoutes);
 app.route('/api/auth', authRoutes);
 app.route('/api/pages', pagesRoutes);
 app.route('/api/menus', menusRoutes);
+app.route('/api/menu-items', menuItemsRoutes);
 app.route('/api/media', mediaRoutes);
 app.route('/api/settings', settingsRoutes);
 app.route('/api/themes', themesRoutes);

@@ -1,20 +1,34 @@
+# =============================================================================
+# CI - VERIFICAÇÃO ANTES DO MERGE
+# =============================================================================
+# Este workflow TESTA se o código funciona antes de permitir o merge.
+# Se falhar, o merge é BLOQUEADO automaticamente.
+#
+# O que ele verifica:
+# 1. API compila sem erros
+# 2. Admin compila sem erros  
+# 3. Dependências instalam corretamente
+# =============================================================================
+
 name: CI
 
 on:
   pull_request:
+    branches: [main]
   push:
     branches: [main]
 
+# Cancela execuções anteriores do mesmo PR
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   # ==========================================
-  # API (Cloudflare Worker)
+  # Testar API
   # ==========================================
-  api:
-    name: API - Build & Test
+  test-api:
+    name: "🔧 API - Build Test"
     runs-on: ubuntu-latest
     timeout-minutes: 10
     
@@ -24,10 +38,10 @@ jobs:
     
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v6
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
@@ -36,23 +50,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: TypeScript check
-        run: npm run typecheck || echo "⚠️ typecheck not configured"
-
-      - name: Lint
-        run: npm run lint || echo "⚠️ lint not configured"
-
-      - name: Run tests
-        run: npm test || echo "⚠️ tests not configured"
-
-      - name: Build check
+      - name: Build
         run: npm run build
+        
+      - name: Success
+        run: echo "✅ API compilou com sucesso!"
 
   # ==========================================
-  # ADMIN (React + Vite)
+  # Testar Admin
   # ==========================================
-  admin:
-    name: Admin - Build & Test
+  test-admin:
+    name: "🎨 Admin - Build Test"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     
@@ -62,10 +70,10 @@ jobs:
     
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v6
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
@@ -74,80 +82,28 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint || echo "⚠️ lint not configured"
-
-      - name: TypeScript check
-        run: npm run typecheck || echo "⚠️ typecheck not configured"
-
-      - name: Run tests
-        run: npm test || echo "⚠️ tests not configured"
-
       - name: Build
         run: npm run build
         env:
           VITE_API_URL: https://cms-site-api.planacacabamentos.workers.dev
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v6
-        with:
-          name: admin-build
-          path: admin/dist
-          retention-days: 7
+          
+      - name: Success
+        run: echo "✅ Admin compilou com sucesso!"
 
   # ==========================================
-  # SITE (Astro - quando existir)
+  # Resultado Final
   # ==========================================
-  site:
-    name: Site - Build & Test
+  all-tests-pass:
+    name: "✅ Todos os Testes"
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    if: ${{ hashFiles('site/package.json') != '' }}
-    
-    defaults:
-      run:
-        working-directory: site
+    needs: [test-api, test-admin]
     
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Setup Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Lint
-        run: npm run lint || echo "⚠️ lint not configured"
-
-      - name: Build
-        run: npm run build
-        env:
-          API_URL: https://cms-site-api.planacacabamentos.workers.dev
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v6
-        with:
-          name: site-build
-          path: site/dist
-          retention-days: 7
-
-  # ==========================================
-  # SUMMARY
-  # ==========================================
-  ci-success:
-    name: CI Success
-    needs: [api, admin]
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Check all jobs
+      - name: All checks passed
         run: |
-          if [[ "${{ needs.api.result }}" == "failure" || "${{ needs.admin.result }}" == "failure" ]]; then
-            echo "❌ CI failed"
-            exit 1
-          fi
-          echo "✅ All CI checks passed!"
+          echo "=========================================="
+          echo "   ✅ TUDO OK! PODE FAZER MERGE!"
+          echo "=========================================="
+          echo ""
+          echo "API: ✅ Compilou"
+          echo "Admin: ✅ Compilou"

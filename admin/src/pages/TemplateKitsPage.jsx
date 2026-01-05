@@ -22,42 +22,47 @@ export default function TemplateKitsPage() {
     try {
       setProgress({ step: 'Aplicando tema...', current: 1, total: 3 })
       
-      let themeId = 'theme_default'
+      const colorsPayload = {
+        primary_color: kit.theme.colors.primary_color,
+        secondary_color: kit.theme.colors.secondary_color,
+        accent_color: kit.theme.colors.accent_color,
+        background_color: kit.theme.colors.background_color,
+        text_color: kit.theme.colors.text_color,
+      }
+      
+      const fontsPayload = {
+        heading_font: kit.theme.fonts.heading_font,
+        body_font: kit.theme.fonts.body_font,
+        base_font_size: kit.theme.fonts.base_font_size,
+        border_radius: kit.theme.fonts.border_radius,
+      }
+      
+      let themeId = null
       try {
         const activeTheme = await themesService.getActive()
         if (activeTheme?.data?.id) {
           themeId = activeTheme.data.id
-        } else if (activeTheme?.data?.theme_id) {
-          themeId = activeTheme.data.theme_id
         }
       } catch (e) {
-        console.log('Could not get active theme, using default')
+        console.log('No active theme found, will create new one')
       }
       
-      const themePayload = {
-        tokens: JSON.stringify({
-          ...kit.theme.colors,
-          ...kit.theme.fonts,
-        }),
-        primary_color: kit.theme.colors.primary_color,
-        secondary_color: kit.theme.colors.secondary_color,
-        heading_font: kit.theme.fonts.heading_font,
-        body_font: kit.theme.fonts.body_font,
-      }
-      
-      try {
-        await themesService.update(themeId, themePayload)
-      } catch (themeError) {
-        if (themeError.response?.status === 404) {
-          const newTheme = await themesService.create({
-            name: 'Tema Principal',
-            ...themePayload,
-          })
-          if (newTheme?.data?.id) {
-            await themesService.activate(newTheme.data.id)
-          }
-        } else {
-          throw themeError
+      if (themeId) {
+        await themesService.update(themeId, {
+          colors: colorsPayload,
+          fonts: fontsPayload,
+        })
+      } else {
+        const slugBase = kit.id || 'tema-principal'
+        const newTheme = await themesService.create({
+          name: kit.name || 'Tema Principal',
+          slug: `${slugBase}-${Date.now()}`,
+          colors: colorsPayload,
+          fonts: fontsPayload,
+          is_active: true,
+        })
+        if (newTheme?.data?.id) {
+          themeId = newTheme.data.id
         }
       }
 

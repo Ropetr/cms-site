@@ -89,9 +89,9 @@ export default function MediaPage() {
 
   const mediaList = data?.data || []
 
-  // Filter by search
+  // Filter by search - usando original_name ao invés de filename
   const filteredMedia = mediaList.filter(item =>
-    item.filename?.toLowerCase().includes(search.toLowerCase()) ||
+    item.original_name?.toLowerCase().includes(search.toLowerCase()) ||
     item.alt_text?.toLowerCase().includes(search.toLowerCase())
   )
 
@@ -256,6 +256,8 @@ export default function MediaPage() {
               {filteredMedia.map((media) => {
                 const FileIcon = getFileIcon(media.mime_type)
                 const isImage = media.mime_type?.startsWith('image/')
+                // Priorizar thumbnail_url para melhor performance
+                const imageUrl = media.thumbnail_url || media.url
                 return (
                   <div
                     key={media.id}
@@ -268,15 +270,16 @@ export default function MediaPage() {
                   >
                     {isImage ? (
                       <img
-                        src={media.url || media.thumbnail_url}
-                        alt={media.alt_text || media.filename}
+                        src={imageUrl}
+                        alt={media.alt_text || media.original_name}
                         className="w-full h-full object-cover"
+                        loading="lazy"
                       />
                     ) : (
                       <div className="w-full h-full bg-gray-100 flex flex-col items-center justify-center">
                         <FileIcon className="w-12 h-12 text-gray-400" />
                         <span className="text-xs text-gray-500 mt-2 px-2 truncate max-w-full">
-                          {media.filename}
+                          {media.original_name}
                         </span>
                       </div>
                     )}
@@ -354,18 +357,19 @@ export default function MediaPage() {
                     <div className="w-12 h-12 rounded overflow-hidden bg-gray-100 flex items-center justify-center flex-shrink-0">
                       {isImage ? (
                         <img
-                          src={media.url || media.thumbnail_url}
-                          alt={media.alt_text || media.filename}
+                          src={media.thumbnail_url || media.url}
+                          alt={media.alt_text || media.original_name}
                           className="w-full h-full object-cover"
+                          loading="lazy"
                         />
                       ) : (
                         <FileIcon className="w-6 h-6 text-gray-400" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{media.filename}</p>
+                      <p className="font-medium text-gray-900 truncate">{media.original_name}</p>
                       <p className="text-sm text-gray-500">
-                        {formatFileSize(media.file_size)} • {new Date(media.created_at).toLocaleDateString('pt-BR')}
+                        {formatFileSize(media.file_size)} • {media.width && media.height ? `${media.width}×${media.height} • ` : ''}{new Date(media.created_at).toLocaleDateString('pt-BR')}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -432,7 +436,7 @@ export default function MediaPage() {
               {selectedMedia.mime_type?.startsWith('image/') ? (
                 <img
                   src={selectedMedia.url}
-                  alt={selectedMedia.alt_text || selectedMedia.filename}
+                  alt={selectedMedia.alt_text || selectedMedia.original_name}
                   className="max-w-full max-h-full object-contain"
                 />
               ) : (
@@ -442,16 +446,16 @@ export default function MediaPage() {
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-gray-700">Nome</label>
-                <p className="text-gray-900">{selectedMedia.filename}</p>
+                <p className="text-gray-900">{selectedMedia.original_name}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700">Tamanho</label>
                 <p className="text-gray-900">{formatFileSize(selectedMedia.file_size)}</p>
               </div>
-              {selectedMedia.width && (
+              {selectedMedia.width && selectedMedia.height && (
                 <div>
                   <label className="text-sm font-medium text-gray-700">Dimensões</label>
-                  <p className="text-gray-900">{selectedMedia.width} x {selectedMedia.height}px</p>
+                  <p className="text-gray-900">{selectedMedia.width} × {selectedMedia.height}px {selectedMedia.aspect_ratio && `(${selectedMedia.aspect_ratio})`}</p>
                 </div>
               )}
               <div>
@@ -523,7 +527,7 @@ export default function MediaPage() {
         <div className="space-y-4">
           <p className="text-gray-600">
             Tem certeza que deseja excluir{' '}
-            <strong>{deleteModal?.filename}</strong>?
+            <strong>{deleteModal?.original_name}</strong>?
           </p>
           <p className="text-sm text-red-600">
             Esta ação não pode ser desfeita.
@@ -573,7 +577,7 @@ function FocalPointEditor({ media, onSave, onCancel, loading }) {
       >
         <img
           src={media.url}
-          alt={media.filename}
+          alt={media.original_name}
           className="w-full"
           draggable={false}
         />

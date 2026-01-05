@@ -1,0 +1,82 @@
+# =============================================================================
+# AUTO-MERGE PARA DEPENDABOT
+# =============================================================================
+# Faz merge automático APENAS quando:
+# 1. É um PR do Dependabot
+# 2. É update minor ou patch (seguro)
+# 3. TODOS os testes do CI passaram
+#
+# Se qualquer teste falhar, o merge NÃO acontece!
+# =============================================================================
+
+name: Auto-merge Dependabot
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: Auto-merge Dependabot PRs
+    runs-on: ubuntu-latest
+    
+    # Só roda para PRs do Dependabot
+    if: github.actor == 'dependabot[bot]'
+    
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+      
+      - name: Log update type
+        run: |
+          echo "📦 Pacote: ${{ steps.metadata.outputs.dependency-names }}"
+          echo "📊 Tipo: ${{ steps.metadata.outputs.update-type }}"
+          echo "🔢 Versão: ${{ steps.metadata.outputs.previous-version }} → ${{ steps.metadata.outputs.new-version }}"
+      
+      # Aprovar se for minor ou patch
+      - name: Approve PR (minor/patch only)
+        if: |
+          steps.metadata.outputs.update-type == 'version-update:semver-minor' || 
+          steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        run: gh pr review --approve "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      # Habilitar auto-merge (só faz merge quando CI passar!)
+      - name: Enable auto-merge (waits for CI)
+        if: |
+          steps.metadata.outputs.update-type == 'version-update:semver-minor' || 
+          steps.metadata.outputs.update-type == 'version-update:semver-patch'
+        run: gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      # Comentar e fechar se for major update
+      - name: Block major update
+        if: steps.metadata.outputs.update-type == 'version-update:semver-major'
+        run: |
+          gh pr comment "$PR_URL" --body "## ⛔ MAJOR UPDATE BLOQUEADO
+
+          Este é um **major update** (${{ steps.metadata.outputs.previous-version }} → ${{ steps.metadata.outputs.new-version }}).
+          
+          Major updates podem ter **breaking changes** que quebram o sistema.
+          
+          **Este PR será fechado automaticamente.**
+          
+          ---
+          
+          Se você realmente precisa desta atualização, peça ajuda a um desenvolvedor para revisar manualmente."
+          
+          gh pr close "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

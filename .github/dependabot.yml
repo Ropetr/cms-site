@@ -1,9 +1,22 @@
-# Dependabot - Atualizacoes automaticas de dependencias
-# IMPORTANTE: Major updates requerem revisao manual!
+# =============================================================================
+# DEPENDABOT - CONFIGURAÇÃO AUTOMÁTICA
+# =============================================================================
+# Este arquivo configura atualizações AUTOMÁTICAS e SEGURAS de dependências.
+# Você não precisa fazer nada! O sistema cuida de tudo sozinho.
+#
+# Como funciona:
+# 1. Dependabot verifica atualizações toda segunda-feira
+# 2. Cria PRs apenas para updates SEGUROS (minor/patch)
+# 3. Se os testes passarem, faz merge automaticamente
+# 4. Updates PERIGOSOS (major) são bloqueados
+# =============================================================================
+
 version: 2
 
 updates:
+  # ============================================
   # API (Cloudflare Worker)
+  # ============================================
   - package-ecosystem: "npm"
     directory: "/api"
     schedule:
@@ -11,26 +24,38 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "America/Sao_Paulo"
-    open-pull-requests-limit: 5
+    
+    # Máximo 3 PRs por vez (não sobrecarrega)
+    open-pull-requests-limit: 3
+    
+    # Labels para identificar
     labels:
       - "dependencies"
       - "api"
+      - "automerge"
+    
+    # Prefixo nos commits
     commit-message:
       prefix: "deps(api)"
       include: "scope"
-    # Ignorar major updates automaticos - requerem revisao manual
+    
+    # BLOQUEAR todos os major updates
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+    
+    # Agrupar updates em um único PR
     groups:
-      minor-and-patch:
+      all-minor-patch:
         patterns:
           - "*"
         update-types:
           - "minor"
           - "patch"
 
-  # Admin (React + Vite)
+  # ============================================
+  # ADMIN (React + Vite)
+  # ============================================
   - package-ecosystem: "npm"
     directory: "/admin"
     schedule:
@@ -38,35 +63,46 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "America/Sao_Paulo"
-    open-pull-requests-limit: 5
+    
+    open-pull-requests-limit: 3
+    
     labels:
       - "dependencies"
       - "admin"
+      - "automerge"
+    
     commit-message:
       prefix: "deps(admin)"
       include: "scope"
-    # Ignorar major updates automaticos - requerem revisao manual
-    # Especialmente para libs criticas como React, TipTap, etc
+    
+    # BLOQUEAR major updates + libs específicas problemáticas
     ignore:
+      # Bloquear TODOS os major updates
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
-      # Manter React 18 (React 19 tem breaking changes)
+      # Bloquear React 19+ (muitas breaking changes)
       - dependency-name: "react"
         versions: [">=19.0.0"]
       - dependency-name: "react-dom"
         versions: [">=19.0.0"]
-      # Manter TipTap v2 (v3 tem breaking changes)
+      # Bloquear TipTap v3+ (incompatível com v2)
       - dependency-name: "@tiptap/*"
         versions: [">=3.0.0"]
+      # Bloquear Tailwind v4+ (mudanças significativas)
+      - dependency-name: "tailwindcss"
+        versions: [">=4.0.0"]
+    
     groups:
-      minor-and-patch:
+      all-minor-patch:
         patterns:
           - "*"
         update-types:
           - "minor"
           - "patch"
 
-  # Site (Astro) - se existir
+  # ============================================
+  # SITE (Astro) - se existir
+  # ============================================
   - package-ecosystem: "npm"
     directory: "/site"
     schedule:
@@ -74,36 +110,48 @@ updates:
       day: "monday"
       time: "09:00"
       timezone: "America/Sao_Paulo"
-    open-pull-requests-limit: 5
+    
+    open-pull-requests-limit: 3
+    
     labels:
       - "dependencies"
       - "site"
+      - "automerge"
+    
     commit-message:
       prefix: "deps(site)"
       include: "scope"
+    
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+    
     groups:
-      minor-and-patch:
+      all-minor-patch:
         patterns:
           - "*"
         update-types:
           - "minor"
           - "patch"
 
-  # GitHub Actions
+  # ============================================
+  # GITHUB ACTIONS
+  # ============================================
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
+    
     labels:
       - "dependencies"
       - "ci"
+      - "automerge"
+    
     commit-message:
       prefix: "ci"
-    # Actions podem ter major updates mais seguros
+    
+    # Actions são mais seguras para major updates
     groups:
       all-actions:
         patterns:

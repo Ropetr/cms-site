@@ -40,24 +40,31 @@ export default function MediaPage() {
     queryFn: () => mediaService.list({ search }),
   })
 
-  // Upload mutation
+
+  // Upload mutation - envia um arquivo por vez
   const uploadMutation = useMutation({
-    mutationFn: (files) => {
-      const formData = new FormData()
-      Array.from(files).forEach(file => {
-        formData.append('files', file)
-      })
-      return mediaService.upload(formData)
+    mutationFn: async (files) => {
+      const results = []
+      for (const file of Array.from(files)) {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('folder', 'general')
+        const result = await mediaService.upload(formData)
+        results.push(result)
+      }
+      return results
     },
-    onSuccess: () => {
+    onSuccess: (results) => {
       queryClient.invalidateQueries(['media'])
-      toast.success('Arquivos enviados com sucesso!')
+      const count = results.length
+      toast.success(`${count} arquivo${count > 1 ? 's' : ''} enviado${count > 1 ? 's' : ''} com sucesso!`)
       setUploading(false)
     },
     onError: (error) => {
       toast.error(error.response?.data?.error || 'Erro ao enviar arquivos')
       setUploading(false)
     },
+  })
   })
 
   // Update mutation (for focal point)

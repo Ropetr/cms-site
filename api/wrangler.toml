@@ -32,6 +32,10 @@ id = "1e35f7e79bc645d09441f6200efb0183"
 [ai]
 binding = "AI"
 
+# Cloudflare Images - Para transformação e otimização de imagens
+[images]
+binding = "IMAGES"
+
 # Durable Objects (opcional - para coordenação de cache)
 # Descomentar quando precisar de Durable Objects
 # [[durable_objects.bindings]]

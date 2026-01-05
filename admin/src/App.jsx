@@ -10,6 +10,7 @@ import MenusPage from './pages/MenusPage'
 import MediaPage from './pages/MediaPage'
 import ContactsPage from './pages/ContactsPage'
 import ThemesPage from './pages/ThemesPage'
+import TemplateKitsPage from './pages/TemplateKitsPage'
 import SettingsPage from './pages/SettingsPage'
 import UsersPage from './pages/UsersPage'
 import PreviewPage from './pages/PreviewPage'
@@ -38,8 +39,9 @@ export default function App() {
         <Route path="/menus" element={<MenusPage />} />
         <Route path="/media" element={<MediaPage />} />
         <Route path="/contacts" element={<ContactsPage />} />
-        <Route path="/themes" element={<ThemesPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/themes" element={<ThemesPage />} />
+                <Route path="/template-kits" element={<TemplateKitsPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/sites" element={<SitesPage />} />
         <Route path="/sites/new" element={<SiteSettingsPage />} />

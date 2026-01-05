@@ -12,11 +12,13 @@ import {
   LogOut,
   ChevronLeft,
   BookOpen,
+  Package,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+  { icon: Package, label: 'Kits de Templates', path: '/template-kits' },
   { icon: FileText, label: 'Páginas', path: '/pages' },
   { icon: BookOpen, label: 'Blog', path: '/posts' },
   { icon: Menu, label: 'Menus', path: '/menus' },

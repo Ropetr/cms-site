@@ -11,9 +11,9 @@
 
 export const designTemplates = [
   {
-    id: 'planac-corporativo',
-    name: 'Planac Corporativo',
-    description: 'Tema oficial da Planac com vermelho institucional e visual profissional',
+    id: 'vermelho-corporativo',
+    name: 'Vermelho Corporativo',
+    description: 'Tema profissional com vermelho institucional e visual elegante',
     preview: '#AA000E',
     colors: {
       primary_color: '#AA000E',

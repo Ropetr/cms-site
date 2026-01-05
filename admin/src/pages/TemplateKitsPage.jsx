@@ -21,7 +21,20 @@ export default function TemplateKitsPage() {
 
     try {
       setProgress({ step: 'Aplicando tema...', current: 1, total: 3 })
-      await themesService.update('theme_default', {
+      
+      let themeId = 'theme_default'
+      try {
+        const activeTheme = await themesService.getActive()
+        if (activeTheme?.data?.id) {
+          themeId = activeTheme.data.id
+        } else if (activeTheme?.data?.theme_id) {
+          themeId = activeTheme.data.theme_id
+        }
+      } catch (e) {
+        console.log('Could not get active theme, using default')
+      }
+      
+      const themePayload = {
         tokens: JSON.stringify({
           ...kit.theme.colors,
           ...kit.theme.fonts,
@@ -30,7 +43,23 @@ export default function TemplateKitsPage() {
         secondary_color: kit.theme.colors.secondary_color,
         heading_font: kit.theme.fonts.heading_font,
         body_font: kit.theme.fonts.body_font,
-      })
+      }
+      
+      try {
+        await themesService.update(themeId, themePayload)
+      } catch (themeError) {
+        if (themeError.response?.status === 404) {
+          const newTheme = await themesService.create({
+            name: 'Tema Principal',
+            ...themePayload,
+          })
+          if (newTheme?.data?.id) {
+            await themesService.activate(newTheme.data.id)
+          }
+        } else {
+          throw themeError
+        }
+      }
 
       setProgress({ step: 'Criando menus...', current: 2, total: 3 })
       for (const menu of kit.menus) {
@@ -42,7 +71,9 @@ export default function TemplateKitsPage() {
             is_visible: 1,
           })
         } catch (e) {
-          console.log('Menu may already exist:', menu.slug)
+          if (e.response?.status !== 409 && e.response?.status !== 400) {
+            console.warn('Menu creation error:', menu.slug, e.response?.data?.error || e.message)
+          }
         }
       }
 
@@ -58,21 +89,28 @@ export default function TemplateKitsPage() {
             meta_description: page.meta_description,
           })
 
-          if (pageRes?.data?.id && page.sections) {
+          const pageId = pageRes?.data?.id || pageRes?.id
+          if (pageId && page.sections) {
             for (let i = 0; i < page.sections.length; i++) {
               const section = page.sections[i]
-              await pagesService.addSection(pageRes.data.id, {
-                section_type: section.section_type,
-                title: section.title,
-                layout: section.layout || 'default',
-                variant: section.variant || 'default',
-                content: JSON.stringify(section.content),
-                sort_order: i,
-              })
+              try {
+                await pagesService.addSection(pageId, {
+                  section_type: section.section_type,
+                  title: section.title,
+                  layout: section.layout || 'default',
+                  variant: section.variant || 'default',
+                  content: JSON.stringify(section.content),
+                  sort_order: i,
+                })
+              } catch (sectionError) {
+                console.warn('Section creation error:', section.section_type, sectionError.response?.data?.error || sectionError.message)
+              }
             }
           }
         } catch (e) {
-          console.log('Page may already exist:', page.slug)
+          if (e.response?.status !== 409 && e.response?.status !== 400) {
+            console.warn('Page creation error:', page.slug, e.response?.data?.error || e.message)
+          }
         }
       }
 
@@ -85,7 +123,8 @@ export default function TemplateKitsPage() {
       navigate('/pages')
     } catch (error) {
       console.error('Error applying kit:', error)
-      toast.error('Erro ao aplicar kit. Tente novamente.')
+      const errorMsg = error.response?.data?.error || error.response?.data?.message || error.message
+      toast.error(`Erro ao aplicar kit: ${errorMsg}`)
     } finally {
       setApplying(false)
       setProgress({ step: '', current: 0, total: 0 })

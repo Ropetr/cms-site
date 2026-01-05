@@ -134,7 +134,7 @@ jobs:
 
       - name: Criar issue se falhou
         if: failure() && github.event_name != 'pull_request'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const existingIssues = await github.rest.issues.listForRepo({

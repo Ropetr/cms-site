@@ -65,7 +65,6 @@ export default function MediaPage() {
       setUploading(false)
     },
   })
-  })
 
   // Update mutation (for focal point)
   const updateMutation = useMutation({

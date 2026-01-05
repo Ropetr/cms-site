@@ -97,6 +97,8 @@ app.use('*', cors({
     
     // Origens permitidas
     const allowedOrigins = [
+      'https://app.fiosites.com',
+      'https://fiosites.com',
       c.env.ADMIN_ORIGIN,
       c.env.SITE_ORIGIN,
     ].filter(Boolean);

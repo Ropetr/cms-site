@@ -158,15 +158,19 @@ app.route('', seoRoutes);
 // ROTA DE IMAGENS OTIMIZADAS
 // =============================================
 
-app.get('/images/:category/:filename', async (c) => {
+app.get('/images/*', async (c) => {
   try {
-    const category = c.req.param('category');
-    const filename = c.req.param('filename');
+    // Extrair o path completo após /images/
+    const url = new URL(c.req.url);
+    const fullPath = url.pathname.replace('/images/', '');
     const preset = c.req.query('preset');
     
-    // Buscar imagem original do R2
-    const key = `${category}/${filename}`;
-    const object = await c.env.MEDIA.get(key);
+    if (!fullPath) {
+      return c.json({ error: 'Path inválido' }, 400);
+    }
+    
+    // Buscar imagem do R2
+    const object = await c.env.MEDIA.get(fullPath);
     
     if (!object) {
       return c.json({ error: 'Imagem não encontrada' }, 404);
@@ -184,7 +188,7 @@ app.get('/images/:category/:filename', async (c) => {
     
     // Aplicar transformação via Cloudflare Images
     const config = IMAGE_PRESETS[preset];
-    const imageUrl = `https://cms-site-api.planacacabamentos.workers.dev/images/${key}`;
+    const imageUrl = `https://cms-site-api.planacacabamentos.workers.dev/images/${fullPath}`;
     
     // Usar fetch com cf.image para transformação
     const transformedResponse = await fetch(imageUrl, {

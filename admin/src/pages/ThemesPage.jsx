@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Save, Palette, Type, RefreshCw, Check } from 'lucide-react'
+import { Save, Palette, Type, RefreshCw, Check, Layout } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Card, CardBody, CardHeader, Button, Input, Select, Loading } from '../components/ui'
 import { themesService } from '../services/api'
+import { designTemplates } from '../data/designTemplates'
 
 export default function ThemesPage() {
   const queryClient = useQueryClient()
@@ -19,6 +20,7 @@ export default function ThemesPage() {
     border_radius: '8',
   })
   const [hasChanges, setHasChanges] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['themes'],
@@ -73,22 +75,33 @@ export default function ThemesPage() {
     saveMutation.mutate(formData)
   }
 
-  const handleReset = () => {
-    setFormData({
-      primary_color: '#AA000E',
-      secondary_color: '#1a1a1a',
-      accent_color: '#f59e0b',
-      background_color: '#ffffff',
-      text_color: '#1f2937',
-      heading_font: 'Inter',
-      body_font: 'Inter',
-      base_font_size: '16',
-      border_radius: '8',
-    })
-    setHasChanges(true)
-  }
+    const handleReset = () => {
+      setFormData({
+        primary_color: '#AA000E',
+        secondary_color: '#1a1a1a',
+        accent_color: '#f59e0b',
+        background_color: '#ffffff',
+        text_color: '#1f2937',
+        heading_font: 'Inter',
+        body_font: 'Inter',
+        base_font_size: '16',
+        border_radius: '8',
+      })
+      setHasChanges(true)
+      setSelectedTemplate(null)
+    }
 
-  const fonts = [
+    const handleApplyTemplate = (template) => {
+      setFormData({
+        ...template.colors,
+        ...template.fonts,
+      })
+      setSelectedTemplate(template.id)
+      setHasChanges(true)
+      toast.success(`Template "${template.name}" aplicado!`)
+    }
+
+    const fonts = [
     'Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins',
     'Oswald', 'Raleway', 'Playfair Display', 'Merriweather', 'Source Sans Pro',
   ]
@@ -111,6 +124,60 @@ export default function ThemesPage() {
           </Button>
         </div>
       </div>
+
+      {/* Design Templates Section */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Layout className="w-5 h-5 text-gray-400" />
+            <h2 className="font-semibold">Templates de Design</h2>
+          </div>
+          <p className="text-sm text-gray-500 mt-1">Selecione um template predefinido para comecar</p>
+        </CardHeader>
+        <CardBody>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            {designTemplates.map((template) => (
+              <button
+                key={template.id}
+                onClick={() => handleApplyTemplate(template)}
+                className={`relative p-4 rounded-lg border-2 transition-all text-left hover:shadow-md ${
+                  selectedTemplate === template.id
+                    ? 'border-primary-500 ring-2 ring-primary-200'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                {selectedTemplate === template.id && (
+                  <div className="absolute top-2 right-2">
+                    <Check className="w-5 h-5 text-primary-500" />
+                  </div>
+                )}
+                <div className="flex gap-1 mb-3">
+                  <div
+                    className="w-6 h-6 rounded-full border border-gray-200"
+                    style={{ backgroundColor: template.colors.primary_color }}
+                    title="Cor Primaria"
+                  />
+                  <div
+                    className="w-6 h-6 rounded-full border border-gray-200"
+                    style={{ backgroundColor: template.colors.secondary_color }}
+                    title="Cor Secundaria"
+                  />
+                  <div
+                    className="w-6 h-6 rounded-full border border-gray-200"
+                    style={{ backgroundColor: template.colors.accent_color }}
+                    title="Cor de Destaque"
+                  />
+                </div>
+                <h3 className="font-medium text-gray-900 text-sm">{template.name}</h3>
+                <p className="text-xs text-gray-500 mt-1 line-clamp-2">{template.description}</p>
+                <div className="mt-2 text-xs text-gray-400">
+                  {template.fonts.heading_font} / {template.fonts.body_font}
+                </div>
+              </button>
+            ))}
+          </div>
+        </CardBody>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Color Settings */}

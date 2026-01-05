@@ -1,7 +1,7 @@
 {
   "name": "cms-site-admin",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "typecheck": "echo 'typecheck passed'"
+    "typecheck": "echo 'Skipping typecheck - JSX project without TypeScript'"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -32,11 +32,13 @@
     "clsx": "^2.1.0",
     "date-fns": "^3.0.0",
     "react-dropzone": "^14.2.0",
-    "react-hot-toast": "^2.4.0"
+    "react-hot-toast": "^2.4.0",
+    "dompurify": "^3.0.8"
   },
   "devDependencies": {
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "@types/dompurify": "^3.0.5",
     "@vitejs/plugin-react": "^4.2.0",
     "autoprefixer": "^10.4.0",
     "postcss": "^8.4.0",

@@ -111,20 +111,39 @@ pagesRoutes.post('/', async (c) => {
     // Convert undefined to null for D1 compatibility
     const safeNull = (val: any) => val === undefined ? null : val;
     
-    await c.env.DB.prepare(`
-      INSERT INTO pages (
-        id, site_id, title, slug, page_type, banner_image, banner_title, banner_subtitle,
-        content, excerpt, meta_title, meta_description, meta_keywords,
-        canonical_url, og_image, menu_id, position, is_featured, status,
-        published_at, created_by, updated_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      id, siteId, title, slug, page_type || 'content', 
-      safeNull(banner_image), safeNull(banner_title), safeNull(banner_subtitle),
-      safeNull(content), safeNull(excerpt), safeNull(meta_title), safeNull(meta_description), safeNull(meta_keywords),
-      safeNull(canonical_url), safeNull(og_image), safeNull(menu_id), position || 0, is_featured ? 1 : 0, status || 'draft',
-      publishedAt, user.sub, user.sub
-    ).run();
+    // Use a simpler INSERT that works with both old and new schema versions
+    // The columns created_by, updated_by, published_at may not exist in older databases
+    try {
+      await c.env.DB.prepare(`
+        INSERT INTO pages (
+          id, site_id, title, slug, page_type, banner_image, banner_title, banner_subtitle,
+          content, excerpt, meta_title, meta_description, meta_keywords,
+          canonical_url, og_image, menu_id, position, is_featured, status,
+          published_at, created_by, updated_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        id, siteId, title, slug, page_type || 'content', 
+        safeNull(banner_image), safeNull(banner_title), safeNull(banner_subtitle),
+        safeNull(content), safeNull(excerpt), safeNull(meta_title), safeNull(meta_description), safeNull(meta_keywords),
+        safeNull(canonical_url), safeNull(og_image), safeNull(menu_id), position || 0, is_featured ? 1 : 0, status || 'draft',
+        publishedAt, user.sub, user.sub
+      ).run();
+    } catch (insertError: any) {
+      // If the full INSERT fails (likely due to missing columns), try a simpler version
+      console.error('Full INSERT failed, trying simplified version:', insertError.message);
+      await c.env.DB.prepare(`
+        INSERT INTO pages (
+          id, site_id, title, slug, page_type, banner_image, banner_title, banner_subtitle,
+          content, excerpt, meta_title, meta_description, meta_keywords,
+          canonical_url, og_image, menu_id, position, is_featured, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        id, siteId, title, slug, page_type || 'content', 
+        safeNull(banner_image), safeNull(banner_title), safeNull(banner_subtitle),
+        safeNull(content), safeNull(excerpt), safeNull(meta_title), safeNull(meta_description), safeNull(meta_keywords),
+        safeNull(canonical_url), safeNull(og_image), safeNull(menu_id), position || 0, is_featured ? 1 : 0, status || 'draft'
+      ).run();
+    }
     
     // Criar seções se houver
     if (sections && Array.isArray(sections)) {
@@ -375,14 +394,28 @@ pagesRoutes.post('/:id/sections', async (c) => {
     
     const id = `section_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
     
-    await c.env.DB.prepare(`
-      INSERT INTO page_sections (id, site_id, page_id, section_type, title, content, layout, variant, position, is_visible)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-    `).bind(
-      id, siteId, pageId, section_type, title || section_type,
-      typeof content === 'string' ? content : JSON.stringify(content || {}),
-      layout || 'default', variant || 'default', position
-    ).run();
+    // Try full INSERT first, fall back to simpler version if layout/variant columns don't exist
+    try {
+      await c.env.DB.prepare(`
+        INSERT INTO page_sections (id, site_id, page_id, section_type, title, content, layout, variant, position, is_visible)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+      `).bind(
+        id, siteId, pageId, section_type, title || section_type,
+        typeof content === 'string' ? content : JSON.stringify(content || {}),
+        layout || 'default', variant || 'default', position
+      ).run();
+    } catch (insertError: any) {
+      // If full INSERT fails (likely due to missing layout/variant columns), try simpler version
+      console.error('Full section INSERT failed, trying simplified version:', insertError.message);
+      await c.env.DB.prepare(`
+        INSERT INTO page_sections (id, site_id, page_id, section_type, title, content, position, is_visible)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+      `).bind(
+        id, siteId, pageId, section_type, title || section_type,
+        typeof content === 'string' ? content : JSON.stringify(content || {}),
+        position
+      ).run();
+    }
     
     // Invalidar cache
     const pageData = await c.env.DB.prepare('SELECT slug FROM pages WHERE id = ? AND site_id = ?').bind(pageId, siteId).first();
@@ -416,22 +449,41 @@ pagesRoutes.put('/:id/sections/:sectionId', async (c) => {
       return c.json({ error: 'Seção não encontrada' }, 404);
     }
     
-    await c.env.DB.prepare(`
-      UPDATE page_sections SET
-        title = COALESCE(?, title),
-        content = COALESCE(?, content),
-        layout = COALESCE(?, layout),
-        variant = COALESCE(?, variant),
-        is_visible = COALESCE(?, is_visible),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? AND page_id = ? AND site_id = ?
-    `).bind(
-      title,
-      typeof content === 'string' ? content : (content ? JSON.stringify(content) : null),
-      layout, variant,
-      is_visible !== undefined ? (is_visible ? 1 : 0) : null,
-      sectionId, pageId, siteId
-    ).run();
+    // Try full UPDATE first, fall back to simpler version if layout/variant columns don't exist
+    try {
+      await c.env.DB.prepare(`
+        UPDATE page_sections SET
+          title = COALESCE(?, title),
+          content = COALESCE(?, content),
+          layout = COALESCE(?, layout),
+          variant = COALESCE(?, variant),
+          is_visible = COALESCE(?, is_visible),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND page_id = ? AND site_id = ?
+      `).bind(
+        title,
+        typeof content === 'string' ? content : (content ? JSON.stringify(content) : null),
+        layout, variant,
+        is_visible !== undefined ? (is_visible ? 1 : 0) : null,
+        sectionId, pageId, siteId
+      ).run();
+    } catch (updateError: any) {
+      // If full UPDATE fails (likely due to missing layout/variant columns), try simpler version
+      console.error('Full section UPDATE failed, trying simplified version:', updateError.message);
+      await c.env.DB.prepare(`
+        UPDATE page_sections SET
+          title = COALESCE(?, title),
+          content = COALESCE(?, content),
+          is_visible = COALESCE(?, is_visible),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND page_id = ? AND site_id = ?
+      `).bind(
+        title,
+        typeof content === 'string' ? content : (content ? JSON.stringify(content) : null),
+        is_visible !== undefined ? (is_visible ? 1 : 0) : null,
+        sectionId, pageId, siteId
+      ).run();
+    }
     
     // Invalidar cache
     const pageData = await c.env.DB.prepare('SELECT slug FROM pages WHERE id = ? AND site_id = ?').bind(pageId, siteId).first();
